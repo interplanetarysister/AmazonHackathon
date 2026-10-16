@@ -181,7 +181,38 @@ def parse_notice(raw: str) -> dict[str, Any]:
             "notice": "Review and correct every extracted field before saving; no carrier API was consulted."}
 
 
+def plan_delivery_question(question: str) -> dict[str, Any]:
+    """Rule-based, read-only intent routing. Never present as a generative AI model."""
+    q = question.casefold()
+    if re.search(r"\b(missing|lost|not received|not arrived|never arrived|didn.t arrive|can.t find|wasn.t delivered|not here|didn.t show up|report.*package)\b", q):
+        intent = "resolve_missing"
+        calls = ["get_delivery", "get_delivery_timeline", "find_delivery_issues", "prepare_resolution_steps"]
+    elif re.search(r"\b(proof|verify|verified|action|audit|failure|failed|what changed)\b", q):
+        intent = "check_proof"
+        calls = ["list_actions"]
+    elif re.search(r"\b(doorstep|camera|ring|timeline|timestamp|evidence|when|footage|motion)\b", q):
+        intent = "review_timeline"
+        calls = ["get_delivery", "get_delivery_timeline"]
+    elif re.search(r"\b(today|arriving|due|expected|upcoming|all packages|all deliveries)\b", q):
+        intent = "check_upcoming"
+        calls = ["list_deliveries"]
+    elif re.search(r"\b(where|status|track|delivered|received|package|shipment|delivery)\b", q):
+        intent = "check_status"
+        calls = ["get_delivery", "get_delivery_timeline"]
+    else:
+        intent = "clarify"
+        calls = []
+    return {"intent": intent, "planned_tools": calls,
+            "method": "deterministic_keyword_routing_not_generative_ai",
+            "requires_user_confirmation_for_changes": True,
+            "description": "Read-only plan. No changes, claims or provider messages have been sent.",
+            "suggestions": ["Where is my package?", "It says delivered but I can't find it",
+                            "Show my delivery evidence", "Show verified actions"]}
+
+
 def execute(name: str, a: dict) -> dict[str, Any]:
+    if name == "plan_delivery_question":
+        return plan_delivery_question(required_str(a, "question", 500))
     if name == "parse_delivery_notice":
         raw = required_str(a, "text", 3000)
         return parse_notice(raw)
@@ -350,12 +381,22 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 "Keep the order confirmation and report your missing-package concern if needed."],
                 "warning": "Guidance only; no complaint or refund request has been submitted.",
                 "current_claim": d["carrier_status"], "user_receipt": d["receipt_status"],
-                "resolution_links": resolution_links(d["carrier"])}
+                "resolution_links": resolution_links(d["carrier"]),
+                "support_message_draft": (
+                    "Hello, I need assistance locating my shipment. "
+                    "The package is listed as: " + d["label"][:120] + ". "
+                    "The carrier is " + d["carrier"][:40] + ". "
+                    "The carrier status entered into my record is " + d["carrier_status"].replace("_", " ") + ". "
+                    "My receipt status is " + d["receipt_status"].replace("_", " ") + ". "
+                    "Please check the delivery scan and help me confirm the actual delivery or next steps. "
+                    "I can supply order details privately through your official support channel."
+                )}
 
         raise ValueError("Unknown tool")
 
 
 TOOL_INPUTS = {
+    "plan_delivery_question": ({"question": "string"}, ["question"]),
     "parse_delivery_notice": ({"text": "string"}, ["text"]),
     "correct_delivery_eta": ({"delivery_id": "string", "eta": "string", "idempotency_key": "string"}, ["delivery_id", "eta", "idempotency_key"]),
     "import_delivery_notice": ({"label": "string", "carrier": "string", "eta": "string", "tracking_hint": "string", "idempotency_key": "string"}, ["label", "carrier", "eta", "idempotency_key"]),
