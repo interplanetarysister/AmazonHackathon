@@ -463,6 +463,14 @@ def home():
     return FileResponse(Path(__file__).parent / "web" / "index.html", media_type="text/html")
 
 
+@app.get("/notify-sw.js")
+def notification_worker():
+    # Minimal same-origin service worker for explicitly opted-in browser notifications.
+    return FileResponse(Path(__file__).parent / "web" / "notify-sw.js",
+                        media_type="application/javascript",
+                        headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/"})
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "mode": "local_demo", "mcp_protocol": VERSION}
