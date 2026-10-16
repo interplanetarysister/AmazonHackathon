@@ -351,7 +351,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                             (status, utc(), did))
                 timeline_record(con, did, "ups_tracking_scan", check["source"],
                                 check["status_description"], check.get("carrier_event_at"))
-                return did, "UPS official " + check["environment"] + " response; provider claim only", \\
+                return did, "UPS official " + check["environment"] + " response; provider claim only", \
                     lambda: delivery(con, did)["carrier_status"] == status
             return mutation(con, name, a, work)
 
@@ -366,7 +366,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                                VALUES(?,?,?) ON CONFLICT(delivery_id)
                                DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at""",
                             (did, int(enabled), utc()))
-                return did, "Local per-package notification preference, not a push subscription", \\
+                return did, "Local per-package notification preference, not a push subscription", \
                     lambda: bool(con.execute("SELECT enabled FROM notification_preferences WHERE delivery_id=?",
                                              (did,)).fetchone()[0]) == enabled
             return mutation(con, name, a, work)
