@@ -101,7 +101,27 @@ def mutation(con, name: str, a: dict, work):
     return {"action_id": aid, "delivery_id": did, "status": status, "evidence": proof, "replayed": False}
 
 
+def parse_notice(raw: str) -> dict[str, Any]:
+    """Extract only explicit sample notice fields. No AI or carrier verification."""
+    found: dict[str, str] = {}
+    patterns = {
+        "label": r"(?:item|package|product|order item)\s*:\s*(.+)",
+        "carrier": r"(?:carrier|courier|shipped via)\s*:\s*(.+)",
+        "eta": r"(?:estimated delivery|expected arrival|delivery date|eta)\s*:\s*(.+)",
+    }
+    for key, pattern in patterns.items():
+        match = re.search(r"^\s*" + pattern + r"\s*$", raw, flags=re.IGNORECASE | re.MULTILINE)
+        if match:
+            found[key] = match.group(1).strip()[:120]
+    return {"fields": found, "missing": [k for k in patterns if k not in found],
+            "source": "user_pasted_text_not_verified", "needs_review": True,
+            "notice": "Review and correct every extracted field before saving; no carrier API was consulted."}
+
+
 def execute(name: str, a: dict) -> dict[str, Any]:
+    if name == "parse_delivery_notice":
+        raw = required_str(a, "text", 3000)
+        return parse_notice(raw)
     with db() as con:
         if name == "import_delivery_notice":
             label = required_str(a, "label")
@@ -147,6 +167,16 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 con.execute("UPDATE deliveries SET carrier_status=?, updated_at=? WHERE id=?", (status, utc(), did))
                 add_evidence(con, did, "carrier_status", "demo_manual_status", status)
                 return did, "Manually entered carrier claim (not live carrier API)", lambda: delivery(con, did)["carrier_status"] == status
+            return mutation(con, name, a, work)
+
+        if name == "correct_delivery_eta":
+            did = required_str(a, "delivery_id", 80)
+            new_eta = required_str(a, "eta", 60)
+            def work():
+                previous = delivery(con, did)["eta"]
+                con.execute("UPDATE deliveries SET eta=?, updated_at=? WHERE id=?", (new_eta, utc(), did))
+                add_evidence(con, did, "eta_correction", "user_correction", "ETA corrected by user; earlier value was: " + previous)
+                return did, "User corrected expected arrival, not carrier confirmed", lambda: delivery(con, did)["eta"] == new_eta
             return mutation(con, name, a, work)
 
         if name == "confirm_delivery_receipt":
@@ -195,6 +225,8 @@ def execute(name: str, a: dict) -> dict[str, Any]:
 
 
 TOOL_INPUTS = {
+    "parse_delivery_notice": ({"text": "string"}, ["text"]),
+    "correct_delivery_eta": ({"delivery_id": "string", "eta": "string", "idempotency_key": "string"}, ["delivery_id", "eta", "idempotency_key"]),
     "import_delivery_notice": ({"label": "string", "carrier": "string", "eta": "string", "tracking_hint": "string", "idempotency_key": "string"}, ["label", "carrier", "eta", "idempotency_key"]),
     "list_deliveries": ({}, []),
     "get_delivery": ({"delivery_id": "string"}, ["delivery_id"]),
