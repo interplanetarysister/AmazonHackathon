@@ -50,3 +50,10 @@ Open `http://127.0.0.1:8000` in a browser on the same device. No hardware or onl
 **Next priority:** Run a real browser-to-localhost demo on Termux, verify independent MCP SDK interoperability, test the official Ring Playground if accessible, then finalize the friction log, demo video, setup validation and Devpost submission. The signed Ring-format test fixture is not a real Ring event. No Kiro credits or paid services were consumed.
 
 Official contest: https://amazonappdev2026.devpost.com/
+
+## Kiro CLI: first credit-aware development batch
+
+- [Official-documentation-derived Kiro prompting and credit strategy](docs/kiro-communication-guide.md) — source links, first-prompt review, `/usage` and context management.
+- [Reviewed first-run prompt for Kiro](.kiro/prompts/delivery-guardian-first-run.md) — a **bounded execution milestone**, not an unconditional request to build the entire product.
+
+**Owner preflight:** Sync the project safely, inspect `/usage` and `/model` in Kiro CLI, ensure the selected model is available on the Free plan and that sufficient credit headroom remains to preserve the final credit. A single complex request can cost multiple credits, so a hard credit cap is not guaranteed. In Kiro V3, use `/prompts list` and choose the saved prompt or paste its contents; in V2, paste the prompt if local prompt invocation is unavailable. Do not run both versions of the same instruction. The first batch ends with tested code, a 10%-increment progress report when earned, and a sample for user feedback. Do not run unattended agent jobs or paid cloud tasks.
