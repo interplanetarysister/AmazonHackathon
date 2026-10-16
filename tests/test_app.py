@@ -159,6 +159,36 @@ class DeliveryTests(unittest.TestCase):
         bad = self.rpc("tools/call", {"name": "update_carrier_status", "arguments": {"delivery_id": "missing", "status": "stolen", "idempotency_key": "x"}}).json()["result"]
         self.assertTrue(bad["isError"])
 
+    def test_conversational_request_routes_to_real_tools_without_mutation(self):
+        cases = {
+            "My package says delivered but I can't find it": ("resolve_missing", "prepare_resolution_steps"),
+            "Show verified actions and proof": ("check_proof", "list_actions"),
+            "What happened on my Ring camera?": ("review_timeline", "get_delivery_timeline"),
+            "What's arriving today?": ("check_upcoming", "list_deliveries"),
+            "Where is my package?": ("check_status", "get_delivery"),
+        }
+        for question, (expected, target_tool) in cases.items():
+            with self.subTest(question=question):
+                plan = self.tool("plan_delivery_question", question=question)
+                self.assertEqual(plan["intent"], expected)
+                self.assertIn(target_tool, plan["planned_tools"])
+                self.assertTrue(plan["requires_user_confirmation_for_changes"])
+                self.assertIn("not_generative_ai", plan["method"])
+        self.assertEqual(self.tool("list_actions")["actions"], [])
+        self.assertEqual(self.tool("list_deliveries")["deliveries"], [])
+        self.assertEqual(self.tool("plan_delivery_question", question="please frobnicate")
+                         ["intent"], "clarify")
+
+    def test_resolution_draft_is_reviewable_and_never_sent(self):
+        did = self.tool("import_delivery_notice", label="Sample cookbook",
+                        carrier="FedEx", eta="Friday", idempotency_key="draft-create")["delivery_id"]
+        response = self.tool("prepare_resolution_steps", delivery_id=did)
+        self.assertIn("Sample cookbook", response["support_message_draft"])
+        self.assertIn("help me confirm", response["support_message_draft"])
+        self.assertIn("No", response["warning"])
+        self.assertNotIn("submitted", json.dumps(self.tool("list_actions")).lower())
+        self.assertIn("fedex.com", response["resolution_links"][0]["url"])
+
     def test_claim_time_and_record_time_stay_separate(self):
         created = self.tool("import_delivery_notice", label="Book", carrier="UPS", eta="Friday",
                             idempotency_key="time-new")["delivery_id"]
