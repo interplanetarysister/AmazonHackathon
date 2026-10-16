@@ -79,6 +79,20 @@ class DeliveryTests(unittest.TestCase):
         self.assertIn("local_fixture_not_ring", [e["source"] for e in data["evidence"]])
         self.assertIn("no complaint", self.tool("prepare_resolution_steps", delivery_id=did)["warning"])
 
+    def test_notice_parsing_and_correctable_context(self):
+        parsed = self.tool("parse_delivery_notice", text="Item: Blue notebook\nCarrier: Example Carrier\nETA: Friday afternoon")
+        self.assertEqual(parsed["fields"]["label"], "Blue notebook")
+        self.assertTrue(parsed["needs_review"])
+        self.assertEqual(parsed["missing"], [])
+        missing = self.tool("parse_delivery_notice", text="Item: Shoes")
+        self.assertIn("eta", missing["missing"])
+        did = self.create()["delivery_id"]
+        proof = self.tool("correct_delivery_eta", delivery_id=did, eta="Sunday", idempotency_key="eta-1")
+        self.assertEqual(proof["status"], "verified")
+        saved = self.tool("get_delivery", delivery_id=did)
+        self.assertEqual(saved["delivery"]["eta"], "Sunday")
+        self.assertIn("user_correction", [e["source"] for e in saved["evidence"]])
+
     def test_failures_do_not_fake_success(self):
         x = self.rpc("tools/call", {"name": "get_delivery", "arguments": {"delivery_id": "missing"}}).json()["result"]
         self.assertTrue(x["isError"])
