@@ -47,6 +47,9 @@ def db():
             eta TEXT NOT NULL, tracking_hint TEXT NOT NULL, carrier_status TEXT NOT NULL,
             receipt_status TEXT NOT NULL, doorstep_status TEXT NOT NULL,
             source TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""")
+        columns = {row[1] for row in con.execute("PRAGMA table_info(deliveries)")}
+        if "direction" not in columns:
+            con.execute("ALTER TABLE deliveries ADD COLUMN direction TEXT NOT NULL DEFAULT 'incoming'")
         con.execute("""CREATE TABLE IF NOT EXISTS actions (
             id TEXT PRIMARY KEY, idempotency_key TEXT UNIQUE, tool TEXT NOT NULL,
             status TEXT NOT NULL, delivery_id TEXT, evidence TEXT NOT NULL,
@@ -325,14 +328,19 @@ def execute(name: str, a: dict) -> dict[str, Any]:
             label = required_str(a, "label")
             carrier = required_str(a, "carrier", 40)
             eta = required_str(a, "eta", 60)
+            direction = a.get("direction", "incoming")
+            if direction not in ("incoming", "outgoing"):
+                raise ValueError("direction must be incoming or outgoing")
             hint = optional_str(a, "tracking_hint", 30)
             if hint and not re.fullmatch(r"[A-Za-z0-9*#-]+", hint):
                 raise ValueError("Use a redacted tracking hint, not a full private tracking number")
             did = str(uuid.uuid4())
             def work():
                 now = utc()
-                con.execute("INSERT INTO deliveries VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                            (did, label, carrier, eta, hint, "expected", "unknown", "unknown", "user_entered", now, now))
+                con.execute("""INSERT INTO deliveries
+                    (id,label,carrier,eta,tracking_hint,carrier_status,receipt_status,doorstep_status,source,created_at,updated_at,direction)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (did, label, carrier, eta, hint, "expected", "unknown", "unknown", "user_entered", now, now, direction))
                 add_evidence(con, did, "import", "user_entered", "Fields confirmed by user; not carrier verified")
                 timeline_record(con, did, "arrival_estimate_recorded", "user_entered", eta)
                 return did, "User-entered delivery record", lambda: con.execute("SELECT label FROM deliveries WHERE id=?", (did,)).fetchone()[0] == label
@@ -560,7 +568,7 @@ TOOL_INPUTS = {
     "plan_delivery_question": ({"question": "string"}, ["question"]),
     "parse_delivery_notice": ({"text": "string"}, ["text"]),
     "correct_delivery_eta": ({"delivery_id": "string", "eta": "string", "idempotency_key": "string"}, ["delivery_id", "eta", "idempotency_key"]),
-    "import_delivery_notice": ({"label": "string", "carrier": "string", "eta": "string", "tracking_hint": "string", "idempotency_key": "string"}, ["label", "carrier", "eta", "idempotency_key"]),
+    "import_delivery_notice": ({"label": "string", "carrier": "string", "eta": "string", "direction": "string", "tracking_hint": "string", "idempotency_key": "string"}, ["label", "carrier", "eta", "idempotency_key"]),
     "list_deliveries": ({}, []),
     "get_delivery": ({"delivery_id": "string"}, ["delivery_id"]),
     "get_action_proof": ({"action_id": "string"}, ["action_id"]),
