@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import hmac
 import os
 import re
 import sqlite3
@@ -19,6 +20,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, FileResponse
+from ring_adapter import ensure_ring_schema, verify_signature, store_ring_event, list_ring_events
 
 VERSION = "2025-11-25"
 DATABASE = os.environ.get("DG_DB_PATH", str(Path(__file__).parent / "delivery-guardian.sqlite3"))
@@ -91,6 +93,7 @@ def mutation(con, name: str, a: dict, work):
                 "evidence": json.loads(prior["evidence"])}
     aid = str(uuid.uuid4())
     did, details, check = work()
+    con.commit()  # The record must be durably saved before DoneProof checks it.
     confirmed = bool(check())
     status = "verified" if confirmed else "needs_review"
     proof = {"scope": "local database state", "read_after_write": confirmed,
@@ -99,6 +102,17 @@ def mutation(con, name: str, a: dict, work):
     con.execute("INSERT INTO actions VALUES (?,?,?,?,?,?,?,?)",
                 (aid, key, name, status, did, json.dumps(proof), utc(), utc() if confirmed else None))
     return {"action_id": aid, "delivery_id": did, "status": status, "evidence": proof, "replayed": False}
+
+
+def failed_action(tool: str, error: str) -> str:
+    """Persist a sanitized failed mutation, without private arguments."""
+    aid = str(uuid.uuid4())
+    with db() as con:
+        con.execute("INSERT INTO actions VALUES (?,?,?,?,?,?,?,?)",
+            (aid, None, tool, "failed", None,
+             json.dumps({"scope": "local execution", "error": error[:180],
+                         "note": "No completed action was verified."}), utc(), None))
+    return aid
 
 
 def parse_notice(raw: str) -> dict[str, Any]:
@@ -204,6 +218,35 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 return did, "Local fixture only, NOT Ring evidence", lambda: delivery(con, did)["doorstep_status"] == "demo_event_observed"
             return mutation(con, name, a, work)
 
+        if name == "list_actions":
+            rows = [dict(r) for r in con.execute("SELECT * FROM actions ORDER BY created_at DESC, rowid DESC LIMIT 30")]
+            for entry in rows:
+                entry["evidence"] = json.loads(entry["evidence"])
+            return {"actions": rows}
+
+        if name == "list_ring_events":
+            return list_ring_events(con)
+
+        if name == "attach_ring_event":
+            did = required_str(a, "delivery_id", 80)
+            event_id = required_str(a, "event_id", 80)
+            def work():
+                delivery(con, did)
+                ensure_ring_schema(con)
+                row = con.execute("SELECT * FROM ring_events WHERE id=?", (event_id,)).fetchone()
+                if row is None:
+                    raise ValueError("Ring-format event not found")
+                if row["linked_delivery_id"] not in (None, did):
+                    raise ValueError("Event has already been linked to a different delivery")
+                con.execute("UPDATE ring_events SET linked_delivery_id=? WHERE id=?", (did, event_id))
+                con.execute("UPDATE deliveries SET doorstep_status=?, updated_at=? WHERE id=?",
+                            ("signed_event_linked", utc(), did))
+                add_evidence(con, did, row["event_type"], "signed_ring_format_unconfirmed_source",
+                             "User associated a signed Ring-format event. Not evidence of a package or receipt.")
+                return did, "User-linked signed event; Ring origin not independently established", \
+                    lambda: con.execute("SELECT linked_delivery_id FROM ring_events WHERE id=?", (event_id,)).fetchone()[0] == did
+            return mutation(con, name, a, work)
+
         if name == "find_delivery_issues":
             records = [dict(r) for r in con.execute("SELECT * FROM deliveries ORDER BY created_at DESC")]
             issues = [{"delivery_id": d["id"], "label": d["label"], "reason": "Carrier status entered as delivered; user reports not received",
@@ -235,6 +278,9 @@ TOOL_INPUTS = {
     "confirm_delivery_receipt": ({"delivery_id": "string", "status": "string", "idempotency_key": "string"}, ["delivery_id", "status", "idempotency_key"]),
     "record_doorstep_event": ({"delivery_id": "string", "event": "string", "idempotency_key": "string"}, ["delivery_id", "event", "idempotency_key"]),
     "find_delivery_issues": ({}, []),
+    "list_actions": ({}, []),
+    "list_ring_events": ({}, []),
+    "attach_ring_event": ({"delivery_id": "string", "event_id": "string", "idempotency_key": "string"}, ["delivery_id", "event_id", "idempotency_key"]),
     "prepare_resolution_steps": ({"delivery_id": "string"}, ["delivery_id"]),
 }
 
@@ -316,7 +362,36 @@ async def mcp(request: Request):
             output = execute(name, arguments)
             result = {"content": [{"type": "text", "text": json.dumps(output)}], "structuredContent": output, "isError": False}
         except (ValueError, sqlite3.IntegrityError) as exc:
-            result = {"content": [{"type": "text", "text": str(exc)}], "isError": True}
+            error = str(exc)
+            # Record real failures separately from successful changes. Never store
+            # untrusted raw tool arguments (may contain personal information).
+            aid = failed_action(name, error) if name in {
+                "import_delivery_notice", "update_carrier_status", "correct_delivery_eta",
+                "record_doorstep_event", "confirm_delivery_receipt", "attach_ring_event"
+            } else None
+            result = {"content": [{"type": "text", "text": error}],
+                      "structuredContent": {"status": "failed", "action_id": aid, "error": error},
+                      "isError": True}
     else:
         return JSONResponse(jsonrpc_error(ident, -32601, "Method not found"))
     return JSONResponse(jsonrpc_result(ident, result))
+
+
+@app.post("/webhooks/ring")
+async def ring_webhook(request: Request):
+    """Ring-compatible authenticated webhook inbox; intentionally no account linking."""
+    key = os.environ.get("DG_RING_HMAC_KEY", "")
+    if not key:
+        return JSONResponse({"error": "Ring webhook adapter disabled"}, status_code=503)
+    body = await request.body()
+    if len(body) > 32768:
+        return JSONResponse({"error": "Body too large"}, status_code=413)
+    if not verify_signature(key, body, request.headers.get("X-Signature", "")):
+        return JSONResponse({"error": "Invalid signature"}, status_code=401)
+    try:
+        payload = json.loads(body)
+        with db() as con:
+            result = store_ring_event(con, payload, utc())
+        return result
+    except (ValueError, TypeError, sqlite3.IntegrityError):
+        return JSONResponse({"error": "Invalid Ring-format event payload"}, status_code=422)
