@@ -57,7 +57,16 @@ def main() -> int:
                 print("FAIL: inline script", i)
                 print(result.stderr.strip())
                 return 1
-    print(f"PASS: {len(parser.scripts)} inline script(s) parsed successfully by Node.js.")
+    for external in ("v2.js", "notify-sw.js"):
+        file_path = source.parent / external
+        result = subprocess.run([node, "--check", str(file_path)], text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                check=False, timeout=20)
+        if result.returncode:
+            print("FAIL: external script", external)
+            print(result.stderr.strip())
+            return 1
+    print(f"PASS: {len(parser.scripts)} inline script(s) and 2 external scripts parsed by Node.js.")
     return 0
 
 
