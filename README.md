@@ -4,6 +4,7 @@ Amazon hackathon work in progress. 7 days from start to submission! Wish me luck
 ## Hackathon research and requirements
 
 - [Official rules, eligibility, tracks, judging, demo and submission checklist](docs/hackathon-requirements.md)
+- [Customer feedback research: 5 substantive complaints, 5 feature opportunities, evidence and exclusions](docs/customer-voice-opportunity-research.md)
 
 Primary planning direction: **Alexa+ — Verified AI Actions + Explainable Memory**. This is a research-stage proposal, not a claim that the integration or Devpost submission is finished.
 
