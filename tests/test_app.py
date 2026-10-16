@@ -185,7 +185,7 @@ class DeliveryTests(unittest.TestCase):
         response = self.tool("prepare_resolution_steps", delivery_id=did)
         self.assertIn("Sample cookbook", response["support_message_draft"])
         self.assertIn("help me confirm", response["support_message_draft"])
-        self.assertIn("No", response["warning"])
+        self.assertIn("no complaint", response["warning"].lower())
         self.assertNotIn("submitted", json.dumps(self.tool("list_actions")).lower())
         self.assertIn("fedex.com", response["resolution_links"][0]["url"])
 
