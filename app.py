@@ -525,6 +525,10 @@ def execute(name: str, a: dict) -> dict[str, Any]:
         if name == "prepare_resolution_steps":
             did = required_str(a, "delivery_id", 80)
             d = delivery(con, did)
+            last_ups_scan = con.execute(
+                "SELECT recorded_at, claimed_at, details FROM delivery_timeline "
+                "WHERE delivery_id=? AND event_type='ups_tracking_scan' "
+                "ORDER BY recorded_at DESC LIMIT 1", (did,)).fetchone()
             return {"delivery_id": did, "steps": ["Check the delivery location and ask others at the address.",
                 "Review the retailer's actual order details and delivery notice.",
                 "Contact the seller or carrier through their official support channel.",
@@ -535,10 +539,18 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 "carrier_contact": carrier_contact(d["carrier"]),
                 "first_action": {
                     "name": "Check for a newer carrier scan, corrected delivery time or delivery photo",
-                    "status": "needs_authorized_provider_or_user_check",
-                    "done": False,
-                    "explanation": "No carrier/email account is connected. Open official tracking now; compare "
-                                   "new updates with the saved report. No external request has been made.",
+                    "status": "ups_api_checked" if last_ups_scan else "needs_authorized_provider_or_user_check",
+                    "done": bool(last_ups_scan),
+                    "checked_at": last_ups_scan["recorded_at"] if last_ups_scan else None,
+                    "explanation": (
+                        "Last UPS API response saved on " + last_ups_scan["recorded_at"]
+                        + ". Carrier description: " + last_ups_scan["details"]
+                        + ". Recheck now for any newer updates; provider scans can change."
+                        if last_ups_scan else
+                        "No authorized live scan check has been recorded for this package. "
+                        "Open the official tracking page, or check a configured UPS tracking number. "
+                        "No external request has been made."
+                    ),
                     "tracking_url": carrier_contact(d["carrier"]).get("tracking_url", "")
                 },
                 "evidence_prompt": "Would you like to include a relevant camera clip in the report?",
