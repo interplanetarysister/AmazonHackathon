@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delivery Guardian — Live MCP Demo</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:light;background:#f2f5fa;color:#17233b}
+*{box-sizing:border-box}body{margin:0}header{background:#132c58;color:white;padding:24px max(22px,calc((100% - 1000px)/2));}header h1{margin:0 0 4px;font-size:1.9rem}header p{margin:0;color:#d9e7fe}
+main{max-width:1040px;margin:20px auto;padding:0 18px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(310px,1.4fr);gap:16px}
+.panel{background:white;border:1px solid #d9e1ef;border-radius:16px;padding:20px;box-shadow:0 4px 15px #102c4a0b}
+h2{font-size:1.15rem;margin:0 0 12px}h3{font-size:1rem;margin:0 0 8px}p{line-height:1.45}.sub{font-size:.85rem;color:#465678}label{display:block;font-weight:650;margin:12px 0 5px}
+input,select{padding:11px;width:100%;background:white;color:#17233b;border:1px solid #7b8ca5;border-radius:9px;font:inherit}input:focus,select:focus,button:focus-visible{outline:3px solid #f5b531;outline-offset:2px}
+button{border:0;background:#1765bd;color:white;border-radius:10px;padding:11px 14px;font:inherit;font-weight:650;cursor:pointer}button:hover{background:#0e4b90}button.secondary{background:#e8f0fc;color:#173f78}button.secondary:hover{background:#d3e3f9}button.alert{background:#933c22}button:disabled{opacity:.5;cursor:wait}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.muted{color:#526078}.error{color:#9c321d;font-weight:650}.success{color:#12613a;font-weight:650}.notice{padding:12px;background:#f2f6fb;border-radius:10px;font-size:.9rem}
+.deliveries{display:grid;gap:9px}.delivery{padding:12px;text-align:left;background:#f7faff;border:1px solid #c5d6ef;color:#12345c}.delivery[aria-pressed="true"]{background:#e0f0fd;border:2px solid #1765bd}.delivery small{display:block;font-weight:400;margin-top:3px;color:#475e74}
+.pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#e9eff7;font-size:.79rem;font-weight:700;margin:2px 3px 2px 0}.pill.ok{background:#e0f3e7;color:#155936}.pill.warn{background:#ffeccf;color:#713b00}
+pre{background:#0c1830;color:#d9ecff;font-size:.73rem;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:10px;max-height:230px;overflow:auto}
+footer{text-align:center;margin:8px 0 22px;font-size:.8rem;color:#50607a}
+@media(max-width:750px){.grid{grid-template-columns:1fr}header{padding:20px}header h1{font-size:1.5rem}.panel{padding:16px}}
+</style></head><body>
+<header><h1>Delivery Guardian <span aria-hidden="true">✦</span></h1><p>Know what's coming. Know what actually arrived. Know what to do next.</p></header>
+<main><div class="notice"><strong>Live local software demonstration.</strong> This uses a real MCP server and database. Delivery details and doorstep events are manually entered or labeled sample data. No live carrier, Alexa device, or Ring account is connected. <span id="conn" role="status">Connecting…</span></div>
+<section class="grid"><div class="panel"><h2>Add a delivery</h2><form id="add"><label for="label">Package name</label><input id="label" required maxlength="120" placeholder="Example: Grocery box"><label for="carrier">Carrier</label><input id="carrier" required maxlength="40" placeholder="Example: UPS"><label for="eta">Expected arrival</label><input id="eta" required maxlength="60" placeholder="Example: Saturday afternoon"><div class="buttons"><button type="submit">Save & verify</button><button type="button" class="secondary" id="demo">Load example</button></div></form><hr><h2>Deliveries</h2><div id="deliveries" class="deliveries" aria-live="polite">Loading…</div></div>
+<div class="panel"><h2>Delivery follow-through</h2><div id="selected">Choose or create a delivery.</div><div id="controls" hidden><div class="buttons"><button id="carrier-done" class="secondary">Carrier says delivered</button><button id="received" class="secondary">I received it</button><button id="missing" class="alert">I can't find it</button><button id="doorstep" class="secondary">Add sample doorstep event</button></div><div class="buttons"><button id="guidance">What should I do?</button><button id="refresh" class="secondary">Check for issues</button></div></div><div id="advice" aria-live="polite"></div></div></section>
+<section class="grid"><div class="panel"><h2>DoneProof · Verified actions</h2><p class="sub">Each change gets an action ID and is read back from the actual database. This verifies our software's record, not the real-world delivery.</p><div id="proof" aria-live="polite" class="notice">No actions yet.</div><div class="buttons"><button id="fail-test" class="secondary">Test a failing action</button></div></div>
+<div class="panel"><h2>Real MCP protocol activity</h2><p class="sub">The browser calls <code>/mcp</code> using initialize, tools/list and tools/call. Protocol version 2025-11-25; stateless Streamable HTTP transport.</p><pre id="log" role="log" aria-live="polite">Starting…</pre></div></section>
+</main><footer>Independent Amazon hackathon project · Local prototype · No subscriptions or hardware required</footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id); let nextId=0, activeId=null, lastAction=null, list=[];
+const showError=e=>{const msg=e instanceof Error?e.message:String(e);$('conn').textContent='Error: '+msg;$('conn').className='error';};
+function log(s){$('log').textContent=(new Date().toLocaleTimeString()+' '+s+'\n'+$('log').textContent).slice(0,5500)}
+async function rpc(method,params={}){
+  const id=++nextId; const payload={jsonrpc:'2.0',id,method,params};
+  const headers={'Content-Type':'application/json','Accept':'application/json, text/event-stream'};
+  if(method!=='initialize')headers['MCP-Protocol-Version']='2025-11-25';
+  log('→ '+method+(method==='tools/call'?' '+params.name:''));
+  const response=await fetch('/mcp',{method:'POST',headers,body:JSON.stringify(payload)});
+  if(!response.ok)throw Error('MCP HTTP '+response.status);
+  let message;
+  if(response.headers.get('content-type')?.includes('text/event-stream')){
+    const text=await response.text();const matches=[...text.matchAll(/^data: (.+)$/gm)];
+    message=JSON.parse(matches.at(-1)?.[1]||'{}');
+  }else message=await response.json();
+  if(message.error)throw Error(message.error.message||'MCP error');
+  log('← '+method+' '+JSON.stringify(message.result).slice(0,350));
+  return message.result;
+}
+async function tool(name,args={}){
+  const res=await rpc('tools/call',{name,arguments:args});
+  if(res.isError)throw Error(res.content?.[0]?.text||'Tool error');
+  return res.structuredContent||JSON.parse(res.content[0].text);
+}
+function key(){return crypto.randomUUID()}
+function setProof(a){lastAction=a.action_id||lastAction;
+  $('proof').replaceChildren();const status=document.createElement('strong');status.textContent='Status: '+a.status+' · '+(a.replayed?'replayed':'new action');$('proof').append(status);
+  const p=document.createElement('p');p.className='sub';p.textContent='Action: '+(a.action_id||'not recorded')+'\nEvidence: '+JSON.stringify(a.evidence||{});$('proof').append(p)
+}
+async function refresh(){const res=await tool('list_deliveries');list=res.deliveries;$('deliveries').replaceChildren();
+  if(!list.length){$('deliveries').textContent='No deliveries yet. Add one above.';return}
+  for(const d of list){const b=document.createElement('button');b.className='delivery';b.setAttribute('aria-pressed',String(d.id===activeId));
+    b.textContent=d.label+' · '+d.carrier;const sm=document.createElement('small');sm.textContent=d.eta+' · Carrier: '+d.carrier_status+' · Receipt: '+d.receipt_status;b.append(sm);
+    b.onclick=()=>{activeId=d.id;refresh()};$('deliveries').append(b)}
+  if(!list.some(d=>d.id===activeId))activeId=list[0].id;
+  const d=list.find(x=>x.id===activeId);$('selected').replaceChildren();
+  const title=document.createElement('h3');title.textContent=d.label;$('selected').append(title);
+  const desc=document.createElement('p');desc.className='sub';desc.textContent='Carrier report: '+d.carrier_status+'\n · Your confirmation: '+d.receipt_status+'\n · Doorstep: '+d.doorstep_status+'\n · Source: '+d.source;$('selected').append(desc);
+  if(d.carrier_status==='marked_delivered'&&d.receipt_status==='user_reported_missing'){
+    const warning=document.createElement('p');warning.className='pill warn';warning.textContent='Needs attention — not proof of theft';$('selected').append(warning)}
+  $('controls').hidden=false;
+  for(const b of $('deliveries').children)b.setAttribute('aria-pressed',String(b.textContent.startsWith(d.label+' · '+d.carrier)));
+}
+async function action(name,fields){try{const a=await tool(name,{...fields,idempotency_key:key()});setProof(a);await refresh()}catch(e){showError(e)}}
+$('add').onsubmit=async e=>{e.preventDefault();try{
+ const a=await tool('import_delivery_notice',{label:$('label').value,carrier:$('carrier').value,eta:$('eta').value,idempotency_key:key()});activeId=a.delivery_id;setProof(a);$('add').reset();await refresh()
+}catch(error){showError(error)}};
+$('demo').onclick=()=>{ $('label').value='Sample book delivery';$('carrier').value='Example Carrier';$('eta').value='Friday, 2–5 PM (sample)';$('add').requestSubmit()};
+$('carrier-done').onclick=()=>action('update_carrier_status',{delivery_id:activeId,status:'marked_delivered'});
+$('received').onclick=()=>action('confirm_delivery_receipt',{delivery_id:activeId,status:'user_confirmed_received'});
+$('missing').onclick=()=>action('confirm_delivery_receipt',{delivery_id:activeId,status:'user_reported_missing'});
+$('doorstep').onclick=()=>action('record_doorstep_event',{delivery_id:activeId,event:'package_like_activity'});
+$('refresh').onclick=async()=>{try{const r=await tool('find_delivery_issues');$('advice').textContent=r.issues.length?'Needs attention: '+r.issues.map(x=>x.label).join(', '):'No reported missing-package conflicts.'}catch(e){showError(e)}};
+$('guidance').onclick=async()=>{try{const r=await tool('prepare_resolution_steps',{delivery_id:activeId});$('advice').replaceChildren();let heading=document.createElement('h3');heading.textContent='Suggested next steps';$('advice').append(heading);const ol=document.createElement('ol');for(const s of r.steps){const li=document.createElement('li');li.textContent=s;ol.append(li)}$('advice').append(ol);let p=document.createElement('p');p.className='sub';p.textContent=r.warning;$('advice').append(p)}catch(e){showError(e)}};
+$('fail-test').onclick=async()=>{try{await tool('get_delivery',{delivery_id:'no-such-delivery'});$('proof').textContent='Unexpected success'}catch(e){$('proof').textContent='Failure detected, not called complete: '+e.message;log('✓ Expected failure surfaced safely')}};
+(async()=>{try{const init=await rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'delivery-guardian-browser',version:'0.1.0'}});if(init.protocolVersion!=='2025-11-25')throw Error('Wrong version');
+ const tools=await rpc('tools/list');log('✓ '+tools.tools.length+' real tools discovered');$('conn').className='success';$('conn').textContent='Connected to local MCP server';await refresh()}catch(e){showError(e)}})();
+</script></body></html>
