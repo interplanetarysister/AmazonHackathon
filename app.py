@@ -103,7 +103,8 @@ def timeline_record(con, did: str, kind: str, source: str, details: str,
                     claimed_at: str | None = None) -> str:
     event_id = str(uuid.uuid4())
     con.execute("INSERT INTO delivery_timeline VALUES (?,?,?,?,?,?,?)",
-                (event_id, did, kind, source, claimed_at, utc(), details[:300]))
+                (event_id, did, kind, source, claimed_at,
+                 datetime.now(timezone.utc).isoformat(timespec="microseconds"), details[:300]))
     return event_id
 
 
