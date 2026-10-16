@@ -92,12 +92,39 @@
       message('Email fields previewed. No Gmail account was connected or scanned.');
     } catch (e) { message('Email preview failed: '+e.message); }
   };
+  function sanitizedShippingCSV(raw) {
+    // Parse quoted CSV locally; remove name, address, email, phone and full
+    // tracking numbers BEFORE anything is sent to the localhost MCP server.
+    const records=[];let record=[],field='',quoted=false;
+    for(let i=0;i<raw.length;i++){
+      const c=raw[i];
+      if(c==='"'){if(quoted&&raw[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}
+      else if(c===','&&!quoted){record.push(field);field='';}
+      else if((c==='\n'||c==='\r')&&!quoted){
+        record.push(field);field='';if(record.some(x=>x.trim()))records.push(record);record=[];
+        if(c==='\r'&&raw[i+1]==='\n')i++;
+      }else field+=c;
+    }
+    if(quoted)throw Error('CSV contains an unfinished quoted field.');
+    record.push(field);if(record.some(x=>x.trim()))records.push(record);
+    if(!records.length)throw Error('CSV has no rows.');
+    const allowed=new Set(['package','name','item','product','order_name','product_title',
+      'carrier','shipping_carrier','shipping_company','courier','eta','expected_delivery',
+      'estimated_delivery','delivery_date','tracking_hint','tracking_suffix','tracking_last4']);
+    // "name" refers only to package name; sender/recipient names are not included.
+    const headers=records[0].map(h=>h.trim().toLowerCase().replaceAll(' ','_'));
+    const indices=headers.map((h,i)=>allowed.has(h)?i:-1).filter(i=>i>=0);
+    if(!indices.length)throw Error('No package/carrier/ETA columns recognized.');
+    const clean=(value)=>'"'+String(value||'').slice(0,120).replaceAll('"','""')+'"';
+    return [indices.map(i=>clean(headers[i])).join(','),
+      ...records.slice(1,21).map(row=>indices.map(i=>clean(row[i])).join(','))].join('\n');
+  }
   E('csv-file').onchange = async () => {
     try {
       rows.length = 0;
       const raw = await readSmallFile(E('csv-file'), 28000);
       if (!raw) return;
-      const data = await tool('preview_shipping_export', {text:raw});
+      const data = await tool('preview_shipping_export', {text:sanitizedShippingCSV(raw)});
       rows.push(...data.rows);
       const chooser = E('csv-choose');
       chooser.replaceChildren();
@@ -286,4 +313,8 @@
   };
   window.DGv2={decorateResolution,selectionChanged};
   capabilities();
+  if(activeId){
+    const selected=list.find(d=>d.id===activeId);
+    if(selected)selectionChanged(selected);
+  }
 })();
