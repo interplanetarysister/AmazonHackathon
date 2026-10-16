@@ -31,3 +31,25 @@ The page executes actual MCP `initialize`, `tools/list` and `tools/call` over st
 ## Future work
 
 Before submission: verify with independent MCP SDK client; ensure clean-room installation and demo under 3 minutes; implement actual Ring Playground adapter only after verifying access/terms. For production: OAuth/account controls, encryption and per-user access control, rate limiting, data deletion, privacy policy, authorized carriers and Ring services. Do not confuse this demo with a launched product.
+
+## Optional Ring-format webhook adapter (actual signature verification, synthetic sender)
+
+The backend now implements `/webhooks/ring` with **raw-body HMAC-SHA256** verification, Ring v1.1 payload validation, deduplication by `meta.request_id`, and a user-controlled inbox. No webhook is accepted without a configured `DG_RING_HMAC_KEY`. For a local demonstration, use **two separate terminals**:
+
+```bash
+# Terminal 1: local server with a disposable DEMO-ONLY key
+DG_RING_HMAC_KEY=local-demo-secret-change-me uvicorn app:app --host 127.0.0.1 --port 8000
+
+# Terminal 2: send one clearly synthetic signed sample using the same disposable key
+DG_RING_HMAC_KEY=local-demo-secret-change-me python scripts/send_sample_ring_event.py
+```
+
+Open the browser page, select a saved delivery, choose **Check event inbox**, then **Link to selected delivery**. This changes a real database record and logs a DoneProof verification. The UI must continue to say that a signed Ring-*format* payload does **not** establish that a genuine Ring device or package was detected. No Ring customer account, Ring Playground, webhook subscription, or real camera has been linked. The Ring Playground simulates live view events, but does not necessarily send webhooks to our local server. A real deployment additionally requires partner onboarding, authorized OAuth/account linking, secure HTTPS hosting, a genuine signing key, and per-customer isolation. Never put real keys into source code.
+
+Signed payloads must have `meta.version=1.1`, `meta.request_id`, `meta.time`, and `data.type` equal to `motion_detected` or `button_press`; only their sanitized event type, timestamp and subtype are retained. Webhooks are NOT automatically assigned to a package. User association is explicit. Verification only establishes the signature against the configured key, not the sender's identity in a test environment.
+
+## Current verification record
+
+- Seven `unittest` backend checks pass, including real MCP JSON-RPC POST requests, SQLite persistence/idempotency, incorrect delivery claims, failures saved in DoneProof, and signed Ring-format event/invalid signature/replay handling.
+- Chromium browser UI was exercised through a local test bridge against the same FastAPI app: sample save, carrier status, missing report, guidance, failed action, and fresh-page persistence worked without browser JavaScript exceptions.
+- **Not yet validated** with a second implementation of the official MCP SDK, a Ring Playground account, public URL, or actual carriers. Do not label the adapter as a live Ring integration or consumer-ready production service.
