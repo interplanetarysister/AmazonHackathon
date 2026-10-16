@@ -277,7 +277,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
 
         if name == "record_package_sighting":
             did = required_str(a, "delivery_id", 80)
-            observed = claimed_timestamp(a, "observed_at")
+            observed = claimed_timestamp(a, "observed_at") or utc()
             def work():
                 delivery(con, did)
                 eid = timeline_record(con, did, "package_seen", "user_statement",
