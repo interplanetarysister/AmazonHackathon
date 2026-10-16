@@ -49,6 +49,10 @@ def db():
         con.execute("""CREATE TABLE IF NOT EXISTS evidence (
             id TEXT PRIMARY KEY, delivery_id TEXT NOT NULL, event_type TEXT NOT NULL,
             source TEXT NOT NULL, details TEXT NOT NULL, observed_at TEXT NOT NULL)""")
+        con.execute("""CREATE TABLE IF NOT EXISTS delivery_timeline (
+            id TEXT PRIMARY KEY, delivery_id TEXT NOT NULL, event_type TEXT NOT NULL,
+            source_type TEXT NOT NULL, claimed_at TEXT, recorded_at TEXT NOT NULL,
+            details TEXT NOT NULL)""")
         con.commit()
         yield con
         con.commit()
@@ -79,6 +83,50 @@ def optional_str(a: dict, key: str, max_len: int = 120) -> str:
 
 def add_evidence(con, did: str, event: str, source: str, details: str):
     con.execute("INSERT INTO evidence VALUES (?,?,?,?,?,?)", (str(uuid.uuid4()), did, event, source, details[:300], utc()))
+
+
+def claimed_timestamp(a: dict, key: str = "claimed_at") -> str | None:
+    """Separate a claimed time from when the app actually recorded the claim."""
+    value = optional_str(a, key, 50)
+    if not value:
+        return None
+    try:
+        date = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if date.tzinfo is None:
+            raise ValueError("Time zone required")
+        return date.astimezone(timezone.utc).isoformat(timespec="seconds")
+    except ValueError as exc:
+        raise ValueError(f"{key} must be ISO 8601 with time zone") from exc
+
+
+def timeline_record(con, did: str, kind: str, source: str, details: str,
+                    claimed_at: str | None = None) -> str:
+    event_id = str(uuid.uuid4())
+    con.execute("INSERT INTO delivery_timeline VALUES (?,?,?,?,?,?,?)",
+                (event_id, did, kind, source, claimed_at, utc(), details[:300]))
+    return event_id
+
+
+def resolution_links(carrier: str) -> list[dict[str, str]]:
+    """Official provider entry points, never a pretend automatic claim submission."""
+    name = carrier.casefold().strip()
+    if "ups" in name or "united parcel" in name:
+        return [{"label": "Open UPS missing-package claim",
+                 "url": "https://www.ups.com/guestclaims/create?loc=en_us",
+                 "instructions": "Review the claim form and submit it yourself. A tracking number may be required."}]
+    if "fedex" in name or "fed ex" in name:
+        return [{"label": "Open FedEx tracking and missing-package report",
+                 "url": "https://www.fedex.com/en-us/tracking.html",
+                 "instructions": "Enter the tracking number, then Manage Delivery → Report Missing Package."}]
+    if "usps" in name or "postal service" in name:
+        return [{"label": "Open USPS Missing Mail search",
+                 "url": "https://missingmail.usps.com/",
+                 "instructions": "USPS generally accepts search requests from seven days after mailing."}]
+    if "amazon" in name:
+        return [{"label": "Open Amazon Your Orders",
+                 "url": "https://www.amazon.com/gp/css/order-history",
+                 "instructions": "Select the order, review the delivery details, and contact Amazon support for a missing package."}]
+    return []
 
 
 def mutation(con, name: str, a: dict, work):
@@ -150,6 +198,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 con.execute("INSERT INTO deliveries VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                             (did, label, carrier, eta, hint, "expected", "unknown", "unknown", "user_entered", now, now))
                 add_evidence(con, did, "import", "user_entered", "Fields confirmed by user; not carrier verified")
+                timeline_record(con, did, "arrival_estimate_recorded", "user_entered", eta)
                 return did, "User-entered delivery record", lambda: con.execute("SELECT label FROM deliveries WHERE id=?", (did,)).fetchone()[0] == label
             return mutation(con, name, a, work)
 
@@ -175,11 +224,14 @@ def execute(name: str, a: dict) -> dict[str, Any]:
             status = required_str(a, "status", 40)
             if status not in {"expected", "in_transit", "out_for_delivery", "marked_delivered", "exception"}:
                 raise ValueError("Unsupported carrier status")
-            # Demo operator entry is NOT independent carrier API evidence.
+            # Operator-entered provider claim: the software does not have live carrier access.
+            carrier_claim_time = claimed_timestamp(a)
             def work():
                 delivery(con, did)
                 con.execute("UPDATE deliveries SET carrier_status=?, updated_at=? WHERE id=?", (status, utc(), did))
                 add_evidence(con, did, "carrier_status", "demo_manual_status", status)
+                timeline_record(con, did, "carrier_" + status, "demo_manual_status",
+                                "Manually transcribed claim; no carrier API verification", carrier_claim_time)
                 return did, "Manually entered carrier claim (not live carrier API)", lambda: delivery(con, did)["carrier_status"] == status
             return mutation(con, name, a, work)
 
@@ -190,6 +242,8 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 previous = delivery(con, did)["eta"]
                 con.execute("UPDATE deliveries SET eta=?, updated_at=? WHERE id=?", (new_eta, utc(), did))
                 add_evidence(con, did, "eta_correction", "user_correction", "ETA corrected by user; earlier value was: " + previous)
+                timeline_record(con, did, "arrival_estimate_corrected", "user_correction",
+                                "Previous: " + previous + " | New: " + new_eta)
                 return did, "User corrected expected arrival, not carrier confirmed", lambda: delivery(con, did)["eta"] == new_eta
             return mutation(con, name, a, work)
 
@@ -202,6 +256,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 delivery(con, did)
                 con.execute("UPDATE deliveries SET receipt_status=?, updated_at=? WHERE id=?", (status, utc(), did))
                 add_evidence(con, did, "receipt", "user_statement", status)
+                timeline_record(con, did, status, "user_statement", "Recorded when the person pressed the button")
                 return did, "User statement", lambda: delivery(con, did)["receipt_status"] == status
             return mutation(con, name, a, work)
 
@@ -215,8 +270,39 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 delivery(con, did)
                 con.execute("UPDATE deliveries SET doorstep_status=?, updated_at=? WHERE id=?", ("demo_event_observed", utc(), did))
                 add_evidence(con, did, event, "local_fixture_not_ring", "Demonstration event; no camera consulted")
+                timeline_record(con, did, "sample_doorstep_event", "local_fixture_not_ring", event)
                 return did, "Local fixture only, NOT Ring evidence", lambda: delivery(con, did)["doorstep_status"] == "demo_event_observed"
             return mutation(con, name, a, work)
+
+        if name == "record_package_sighting":
+            did = required_str(a, "delivery_id", 80)
+            observed = claimed_timestamp(a, "observed_at")
+            def work():
+                delivery(con, did)
+                eid = timeline_record(con, did, "package_seen", "user_statement",
+                                      "Person reports seeing a package; not camera confirmed", observed)
+                return did, "User-reported package sighting, not verified by Ring", \
+                    lambda: con.execute("SELECT id FROM delivery_timeline WHERE id=?", (eid,)).fetchone() is not None
+            return mutation(con, name, a, work)
+
+        if name == "get_delivery_timeline":
+            did = required_str(a, "delivery_id", 80)
+            delivery(con, did)
+            events = [dict(r) for r in con.execute(
+                "SELECT id, event_type, source_type, claimed_at, recorded_at, details "
+                "FROM delivery_timeline WHERE delivery_id=? ORDER BY recorded_at, rowid", (did,))]
+            ensure_ring_schema(con)
+            for row in con.execute(
+                "SELECT id, event_type, subtype, observed_at, received_at, source "
+                "FROM ring_events WHERE linked_delivery_id=?", (did,)):
+                events.append({"id": row["id"], "event_type": "ring_" + row["event_type"],
+                               "source_type": row["source"], "claimed_at": row["observed_at"],
+                               "recorded_at": row["received_at"],
+                               "details": "Signed Ring-format event (" + row["subtype"] + "); sender unverified"})
+            events.sort(key=lambda e: (e["recorded_at"], e["id"]))
+            return {"delivery_id": did, "events": events,
+                    "explanation": "Claimed time is not verification. Recorded time is when the app received the entry. "
+                    "Ring-format source is not guaranteed genuine until an approved integration authenticates it."}
 
         if name == "list_actions":
             rows = [dict(r) for r in con.execute("SELECT * FROM actions ORDER BY created_at DESC, rowid DESC LIMIT 30")]
@@ -262,7 +348,8 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 "Contact the seller or carrier through their official support channel.",
                 "Keep the order confirmation and report your missing-package concern if needed."],
                 "warning": "Guidance only; no complaint or refund request has been submitted.",
-                "current_claim": d["carrier_status"], "user_receipt": d["receipt_status"]}
+                "current_claim": d["carrier_status"], "user_receipt": d["receipt_status"],
+                "resolution_links": resolution_links(d["carrier"])}
 
         raise ValueError("Unknown tool")
 
@@ -274,10 +361,12 @@ TOOL_INPUTS = {
     "list_deliveries": ({}, []),
     "get_delivery": ({"delivery_id": "string"}, ["delivery_id"]),
     "get_action_proof": ({"action_id": "string"}, ["action_id"]),
-    "update_carrier_status": ({"delivery_id": "string", "status": "string", "idempotency_key": "string"}, ["delivery_id", "status", "idempotency_key"]),
+    "update_carrier_status": ({"delivery_id": "string", "status": "string", "claimed_at": "string", "idempotency_key": "string"}, ["delivery_id", "status", "idempotency_key"]),
     "confirm_delivery_receipt": ({"delivery_id": "string", "status": "string", "idempotency_key": "string"}, ["delivery_id", "status", "idempotency_key"]),
     "record_doorstep_event": ({"delivery_id": "string", "event": "string", "idempotency_key": "string"}, ["delivery_id", "event", "idempotency_key"]),
     "find_delivery_issues": ({}, []),
+    "record_package_sighting": ({"delivery_id": "string", "observed_at": "string", "idempotency_key": "string"}, ["delivery_id", "idempotency_key"]),
+    "get_delivery_timeline": ({"delivery_id": "string"}, ["delivery_id"]),
     "list_actions": ({}, []),
     "list_ring_events": ({}, []),
     "attach_ring_event": ({"delivery_id": "string", "event_id": "string", "idempotency_key": "string"}, ["delivery_id", "event_id", "idempotency_key"]),
@@ -367,7 +456,7 @@ async def mcp(request: Request):
             # untrusted raw tool arguments (may contain personal information).
             aid = failed_action(name, error) if name in {
                 "import_delivery_notice", "update_carrier_status", "correct_delivery_eta",
-                "record_doorstep_event", "confirm_delivery_receipt", "attach_ring_event"
+                "record_doorstep_event", "record_package_sighting", "confirm_delivery_receipt", "attach_ring_event"
             } else None
             result = {"content": [{"type": "text", "text": error}],
                       "structuredContent": {"status": "failed", "action_id": aid, "error": error},
