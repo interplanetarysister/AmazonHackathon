@@ -1,6 +1,6 @@
 # Delivery Guardian — Amazon Build, Ship, Shape Hackathon
 
-**Status:** Product scope approved; implementation and judging submission are **not yet complete**.
+**Status:** Local working MVP milestone 1 committed and backend-tested; Ring API integration, independent MCP SDK interoperability, browser end-to-end acceptance, and Devpost submission are **not yet complete**.
 
 **Working name:** Delivery Guardian  
 **Selected ideas:** #11 Delivery Guardian + #1 DoneProof + #5 Ring Resolution  
@@ -29,8 +29,24 @@ Delivery Guardian is a privacy-conscious delivery follow-through application. It
 - Scope freeze: prioritize complete Alexa+ MCP implementation first; Ring is a gated supplementary feature.
 - An authentic under-three-minute demo, clean-room judge setup, developer product feedback, and a timely Devpost submission are mandatory.
 
-## Current status
+## Run milestone 1
 
-This repository currently documents the product scope and earlier research. **Do not assume any MCP server, Ring connector, carrier integration, automated delivery monitor, or deployed production application is working until its code and tests are present and confirmed.** Development instructions, local run commands and validated demo evidence will be added as functionality is implemented.
+See [QUICKSTART.md](QUICKSTART.md) for setup and demonstration steps.
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python -m unittest discover -s tests -v
+uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000` in a browser on the same device. No hardware or online API key required.
+
+**Implemented and backend-tested (Oct 16):** stateless MCP Streamable HTTP 2025-11-25 JSON-RPC `initialize`, `tools/list`, `tools/call`; nine real tools; SQLite persistence; imported/manual delivery records; user-confirmed receipt and manually entered carrier status; local fixture doorstep events; delivery mismatch detection; human-reviewed support guidance; DoneProof local read-back ledger with idempotency, and four passing backend tests. The UI JavaScript passes syntax validation.
+
+**Not verified yet:** browser end-to-end interaction (test environment blocked Chromium's localhost network), independent MCP SDK interoperability, Ring Playground/API calls, actual third-party carrier or email connections, live Alexa+ device access, authentication/multiuser security, public deployment, and Devpost submission. **This is a local demo, not public production.** Never advertise local fixture activity as a Ring event.
+
+**Next priority:** Validate a local real-browser run on user's Termux environment; test official MCP SDK interoperability; investigate official Ring Playground sandbox permissions; add meaningful actual integration only if feasible before deadline; harden reproducibility, accessibility, and capture a genuine under-three-minute demo.
 
 Official contest: https://amazonappdev2026.devpost.com/
