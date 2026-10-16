@@ -6,6 +6,10 @@ there is no authentication or multi-user separation.
 from __future__ import annotations
 
 import json
+import csv
+import io
+from email import policy
+from email.parser import Parser
 import hashlib
 import hmac
 import os
@@ -21,6 +25,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, FileResponse
 from ring_adapter import ensure_ring_schema, verify_signature, store_ring_event, list_ring_events
+from ups_adapter import configured as ups_configured, tracking_lookup
 
 VERSION = "2025-11-25"
 DATABASE = os.environ.get("DG_DB_PATH", str(Path(__file__).parent / "delivery-guardian.sqlite3"))
@@ -53,6 +58,9 @@ def db():
             id TEXT PRIMARY KEY, delivery_id TEXT NOT NULL, event_type TEXT NOT NULL,
             source_type TEXT NOT NULL, claimed_at TEXT, recorded_at TEXT NOT NULL,
             details TEXT NOT NULL)""")
+        con.execute("""CREATE TABLE IF NOT EXISTS notification_preferences (
+            delivery_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL,
+            updated_at TEXT NOT NULL)""")
         con.commit()
         yield con
         con.commit()
@@ -203,6 +211,63 @@ def parse_notice(raw: str) -> dict[str, Any]:
             "notice": "Review and correct every extracted field before saving; no carrier API was consulted."}
 
 
+def parse_email_notice(raw: str) -> dict[str, Any]:
+    """Safely preview one local .eml (not a live Gmail sync)."""
+    if len(raw) > 16000:
+        raise ValueError("Email export is too large; use one message under 16 KB")
+    message = Parser(policy=policy.default).parsestr(raw)
+    if message.is_multipart():
+        content = ""
+        for part in message.walk():
+            if part.get_content_type() == "text/plain" and part.get_content_disposition() != "attachment":
+                try:
+                    content = part.get_content()
+                except (UnicodeError, ValueError, LookupError):
+                    continue
+                break
+    else:
+        try:
+            content = message.get_content()
+        except (UnicodeError, ValueError, LookupError):
+            content = raw
+    content = content if isinstance(content, str) else str(content)
+    result = parse_notice(content[:5000])
+    subject = str(message.get("subject", ""))[:120].replace("\n", " ")
+    result["email_subject"] = subject
+    result["source"] = "user_selected_local_eml_not_gmail_connected"
+    result["notice"] = "Locally selected email preview only. Review fields before saving; no mailbox was accessed."
+    return result
+
+
+def preview_shipping_export(raw: str) -> dict[str, Any]:
+    """Preview authorized CSV exports without automatically storing recipients."""
+    if len(raw) > 28000:
+        raise ValueError("CSV import limited to 28 KB for this judge demonstration")
+    reader = csv.DictReader(io.StringIO(raw))
+    if not reader.fieldnames or len(reader.fieldnames) > 40:
+        raise ValueError("CSV requires a header with up to 40 columns")
+    rows = []
+    for row in reader:
+        if len(rows) >= 20:
+            break
+        normalized = {str(k or "").strip().lower().replace(" ", "_"): str(v or "").strip()
+                      for k, v in row.items() if k is not None}
+        def get(*names):
+            for name in names:
+                if normalized.get(name):
+                    return normalized[name][:120]
+            return ""
+        item = {"label": get("package", "name", "item", "product", "order_name", "product_title"),
+                "carrier": get("carrier", "shipping_carrier", "shipping_company", "courier"),
+                "eta": get("eta", "expected_delivery", "estimated_delivery", "delivery_date"),
+                "tracking_hint": get("tracking_hint", "tracking_suffix", "tracking_last4")[:30]}
+        # Intentionally do not expose recipient, street address, or full tracking number.
+        if item["label"] or item["carrier"]:
+            rows.append(item)
+    return {"rows": rows, "source": "user_selected_local_csv_not_store_connected",
+            "notice": "Preview only; each selected entry must be reviewed and saved. No seller account was accessed."}
+
+
 def plan_delivery_question(question: str) -> dict[str, Any]:
     """Rule-based, read-only intent routing. Never present as a generative AI model."""
     q = question.casefold()
@@ -233,6 +298,23 @@ def plan_delivery_question(question: str) -> dict[str, Any]:
 
 
 def execute(name: str, a: dict) -> dict[str, Any]:
+    if name == "parse_email_notice":
+        return parse_email_notice(required_str(a, "text", 16000))
+    if name == "preview_shipping_export":
+        return preview_shipping_export(required_str(a, "text", 28000))
+    if name == "check_ups_tracking":
+        return tracking_lookup(required_str(a, "tracking_number", 34))
+    if name == "get_connection_capabilities":
+        return {"providers": [
+            {"name": "UPS tracking", "state": "ready_with_developer_credentials" if ups_configured() else "requires_developer_credentials",
+             "feature": "real tracking-number lookup", "can_link_consumer_account": False},
+            {"name": "Gmail", "state": "local_eml_preview_only", "feature": "user-selected exported email"},
+            {"name": "Amazon", "state": "not_connected", "feature": "manual order notice; consumer order OAuth unavailable"},
+            {"name": "Blink", "state": "local_clip_attachment_only", "feature": "user-selected saved video clip"},
+            {"name": "Ring", "state": "signed_format_fixture_only", "feature": "event inbox, no authenticated device"},
+            {"name": "FedEx / USPS / Temu / Shopify / TikTok", "state": "export_or_manual_only",
+             "feature": "CSV or notice import; APIs not authorized"},
+        ], "note": "This local prototype is not authenticated for public user account linking."}
     if name == "plan_delivery_question":
         return plan_delivery_question(required_str(a, "question", 500))
     if name == "parse_delivery_notice":
@@ -255,6 +337,44 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 timeline_record(con, did, "arrival_estimate_recorded", "user_entered", eta)
                 return did, "User-entered delivery record", lambda: con.execute("SELECT label FROM deliveries WHERE id=?", (did,)).fetchone()[0] == label
             return mutation(con, name, a, work)
+
+        if name == "sync_ups_tracking":
+            did = required_str(a, "delivery_id", 80)
+            number = required_str(a, "tracking_number", 34)
+            def work():
+                d = delivery(con, did)
+                if "ups" not in d["carrier"].casefold():
+                    raise ValueError("Select a UPS delivery for UPS tracking")
+                check = tracking_lookup(number)  # official provider response only
+                status = check["carrier_status"]
+                con.execute("UPDATE deliveries SET carrier_status=?, updated_at=? WHERE id=?",
+                            (status, utc(), did))
+                timeline_record(con, did, "ups_tracking_scan", check["source"],
+                                check["status_description"], check.get("carrier_event_at"))
+                return did, "UPS official " + check["environment"] + " response; provider claim only", \\
+                    lambda: delivery(con, did)["carrier_status"] == status
+            return mutation(con, name, a, work)
+
+        if name == "set_notification_preference":
+            did = required_str(a, "delivery_id", 80)
+            enabled = a.get("enabled")
+            if not isinstance(enabled, bool):
+                raise ValueError("enabled must be true or false")
+            def work():
+                delivery(con, did)
+                con.execute("""INSERT INTO notification_preferences(delivery_id,enabled,updated_at)
+                               VALUES(?,?,?) ON CONFLICT(delivery_id)
+                               DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at""",
+                            (did, int(enabled), utc()))
+                return did, "Local per-package notification preference, not a push subscription", \\
+                    lambda: bool(con.execute("SELECT enabled FROM notification_preferences WHERE delivery_id=?",
+                                             (did,)).fetchone()[0]) == enabled
+            return mutation(con, name, a, work)
+
+        if name == "get_notification_preferences":
+            rows = [dict(r) for r in con.execute("SELECT delivery_id,enabled,updated_at FROM notification_preferences")]
+            return {"preferences": rows,
+                    "note": "Only in-page notification tests are active. No background push or camera-polling service configured."}
 
         if name == "list_deliveries":
             return {"deliveries": [dict(r) for r in con.execute("SELECT * FROM deliveries ORDER BY created_at DESC LIMIT 100")]}
@@ -430,6 +550,13 @@ def execute(name: str, a: dict) -> dict[str, Any]:
 
 
 TOOL_INPUTS = {
+    "parse_email_notice": ({"text": "string"}, ["text"]),
+    "preview_shipping_export": ({"text": "string"}, ["text"]),
+    "get_connection_capabilities": ({}, []),
+    "check_ups_tracking": ({"tracking_number": "string"}, ["tracking_number"]),
+    "sync_ups_tracking": ({"delivery_id": "string", "tracking_number": "string", "idempotency_key": "string"}, ["delivery_id", "tracking_number", "idempotency_key"]),
+    "set_notification_preference": ({"delivery_id": "string", "enabled": "boolean", "idempotency_key": "string"}, ["delivery_id", "enabled", "idempotency_key"]),
+    "get_notification_preferences": ({}, []),
     "plan_delivery_question": ({"question": "string"}, ["question"]),
     "parse_delivery_notice": ({"text": "string"}, ["text"]),
     "correct_delivery_eta": ({"delivery_id": "string", "eta": "string", "idempotency_key": "string"}, ["delivery_id", "eta", "idempotency_key"]),
@@ -540,7 +667,8 @@ async def mcp(request: Request):
             # untrusted raw tool arguments (may contain personal information).
             aid = failed_action(name, error) if name in {
                 "import_delivery_notice", "update_carrier_status", "correct_delivery_eta",
-                "record_doorstep_event", "record_package_sighting", "confirm_delivery_receipt", "attach_ring_event"
+                "record_doorstep_event", "record_package_sighting", "confirm_delivery_receipt", "attach_ring_event",
+                "sync_ups_tracking", "set_notification_preference"
             } else None
             result = {"content": [{"type": "text", "text": error}],
                       "structuredContent": {"status": "failed", "action_id": aid, "error": error},
