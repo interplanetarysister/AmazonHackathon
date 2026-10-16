@@ -108,10 +108,10 @@
     if(quoted)throw Error('CSV contains an unfinished quoted field.');
     record.push(field);if(record.some(x=>x.trim()))records.push(record);
     if(!records.length)throw Error('CSV has no rows.');
-    const allowed=new Set(['package','name','item','product','order_name','product_title',
+    const allowed=new Set(['package','item','product','order_name','product_title',
       'carrier','shipping_carrier','shipping_company','courier','eta','expected_delivery',
       'estimated_delivery','delivery_date','tracking_hint','tracking_suffix','tracking_last4']);
-    // "name" refers only to package name; sender/recipient names are not included.
+    // Ambiguous 'name' columns are excluded because they may contain recipients.
     const headers=records[0].map(h=>h.trim().toLowerCase().replaceAll(' ','_'));
     const indices=headers.map((h,i)=>allowed.has(h)?i:-1).filter(i=>i>=0);
     if(!indices.length)throw Error('No package/carrier/ETA columns recognized.');
