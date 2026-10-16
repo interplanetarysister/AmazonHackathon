@@ -130,6 +130,28 @@ def resolution_links(carrier: str) -> list[dict[str, str]]:
     return []
 
 
+def carrier_contact(carrier: str) -> dict[str, str]:
+    """Verified U.S. call and tracking destinations; no automatic calls."""
+    name = carrier.casefold().strip()
+    if "ups" in name or "united parcel" in name:
+        return {"phone": "18007425877", "display_phone": "1-800-742-5877",
+                "support_url": "https://www.ups.com/us/en/support/contact-us",
+                "tracking_url": "https://www.ups.com/us/en/home"}
+    if "fedex" in name or "fed ex" in name:
+        return {"phone": "18004633339", "display_phone": "1-800-463-3339",
+                "support_url": "https://www.fedex.com/en-us/customer-support.html",
+                "tracking_url": "https://www.fedex.com/en-us/tracking.html"}
+    if "usps" in name or "postal service" in name:
+        return {"phone": "18002758777", "display_phone": "1-800-275-8777",
+                "support_url": "https://www.usps.com/help/contact-us.htm",
+                "tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input"}
+    if "amazon" in name:
+        return {"phone": "", "display_phone": "",
+                "support_url": "https://www.amazon.com/gp/css/order-history",
+                "tracking_url": "https://www.amazon.com/gp/css/order-history"}
+    return {}
+
+
 def mutation(con, name: str, a: dict, work):
     key = required_str(a, "idempotency_key", 100)
     digest = hashlib.sha256(json.dumps({k: v for k, v in a.items() if k != "idempotency_key"},
@@ -382,13 +404,25 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 "warning": "Guidance only; no complaint or refund request has been submitted.",
                 "current_claim": d["carrier_status"], "user_receipt": d["receipt_status"],
                 "resolution_links": resolution_links(d["carrier"]),
+                "carrier_contact": carrier_contact(d["carrier"]),
+                "first_action": {
+                    "name": "Check for a newer carrier scan, corrected delivery time or delivery photo",
+                    "status": "needs_authorized_provider_or_user_check",
+                    "done": False,
+                    "explanation": "No carrier/email account is connected. Open official tracking now; compare "
+                                   "new updates with the saved report. No external request has been made.",
+                    "tracking_url": carrier_contact(d["carrier"]).get("tracking_url", "")
+                },
+                "evidence_prompt": "Would you like to include a relevant camera clip in the report?",
                 "support_message_draft": (
                     "Hello, I need assistance locating my shipment. "
                     "The package is listed as: " + d["label"][:120] + ". "
                     "The carrier is " + d["carrier"][:40] + ". "
                     "The carrier status entered into my record is " + d["carrier_status"].replace("_", " ") + ". "
                     "My receipt status is " + d["receipt_status"].replace("_", " ") + ". "
-                    "Please check the delivery scan and help me confirm the actual delivery or next steps. "
+                    "Please recheck the actual scan time, any corrected drop-off timestamp, and the "
+                    "recorded delivery location or delivery photo if available. "
+                    "Please confirm whether the delivery status has been updated. "
                     "I can supply order details privately through your official support channel."
                 )}
 
