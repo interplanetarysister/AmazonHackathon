@@ -183,6 +183,40 @@
     } catch (e) { E('ups-status').textContent='UPS update failed: '+e.message; }
   };
 
+  async function checkFirstUpdate(deliveryId) {
+    // User explicitly pressed "I can't find it"; only an authorized UPS
+    // integration with a number the user entered may be contacted.
+    const d=list.find(x=>x.id===deliveryId);
+    const raw=E('ups-number').value.trim();
+    if(!d || !d.carrier.toLowerCase().includes('ups') || !raw){
+      E('ups-status').textContent='No automatic carrier scan performed. Open the carrier tracking link to check for a corrected delivery scan.';
+      return;
+    }
+    try{
+      const info=await tool('get_connection_capabilities');
+      const ups=info.providers.find(p=>p.name==='UPS tracking');
+      if(ups?.state!=='ready_with_developer_credentials'){
+        E('ups-status').textContent='UPS developer access not configured. The official tracking link is available in the report.';
+        return;
+      }
+      const before=d.carrier_status;
+      E('ups-status').textContent='Checking for a newer UPS scan on your selected package…';
+      const done=await tool('sync_ups_tracking',{
+        delivery_id:deliveryId, tracking_number:trackingInput(), idempotency_key:key()
+      });
+      setProof(done);
+      await refresh();
+      await loadActions();
+      const next=await tool('prepare_resolution_steps',{delivery_id:deliveryId});
+      if(activeId===deliveryId)renderResolution(E('advice'),next);
+      const after=list.find(x=>x.id===deliveryId)?.carrier_status;
+      E('ups-status').textContent='UPS response checked and added to this package timeline. See the recorded scan and report.';
+      if(before!==after)await notifyChange(deliveryId,'UPS reported status changed to '+after);
+    }catch(e){
+      E('ups-status').textContent='The newer UPS scan could not be checked: '+e.message+'. Use the carrier reporting link instead.';
+    }
+  }
+
   async function selectionChanged(delivery) {
     try {
       const response = await tool('get_notification_preferences');
@@ -311,7 +345,7 @@
       message('Evidence ZIP saved locally. Review it and confirm whether your carrier accepts ZIP and the original clip type.');
     }catch(e){message('Could not prepare ZIP: '+e.message);}
   };
-  window.DGv2={decorateResolution,selectionChanged};
+  window.DGv2={decorateResolution,selectionChanged,checkFirstUpdate};
   capabilities();
   if(activeId){
     const selected=list.find(d=>d.id===activeId);
