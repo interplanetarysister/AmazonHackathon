@@ -103,12 +103,12 @@ async function loadRing(){try{const r=await tool('list_ring_events');$('ring-eve
 $('ring-refresh').onclick=loadRing;
 $('export-timeline').onclick=async()=>{if(!activeId)return;try{const d=list.find(x=>x.id===activeId);const r=await tool('get_delivery_timeline',{delivery_id:activeId});const entries=r.events.map(e=>[
   e.event_type.replaceAll('_',' '),'Source: '+e.source_type,'Claimed / observed: '+(e.claimed_at||'not supplied'),'Saved by Delivery Guardian: '+e.recorded_at,'Notes: '+e.details
-].join('\\n')).join('\\n\\n');const report=[
+].join('\n')).join('\n\n');const report=[
   'Delivery Guardian - user-reviewable evidence summary','Local sample/software record; not independent carrier or camera verification',
   'Package: '+d.label,'Carrier: '+d.carrier,'Carrier state: '+friendlyStatus(d.carrier_status),
   'Receipt state: '+friendlyStatus(d.receipt_status),'Generated: '+new Date().toISOString(),
   '',entries,'',r.explanation,'No missing-package report has been submitted by Delivery Guardian.'
-].join('\\n');const blob=new Blob([report],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='delivery-guardian-evidence.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);$('export-message').textContent='Evidence summary saved. Review it before sending.'}catch(e){$('export-message').textContent='Could not save summary: '+(e?.message||String(e))}};
+].join('\n');const blob=new Blob([report],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='delivery-guardian-evidence.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);$('export-message').textContent='Evidence summary saved. Review it before sending.'}catch(e){$('export-message').textContent='Could not save summary: '+(e?.message||String(e))}};
 (async()=>{try{const init=await rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'delivery-guardian-browser',version:'0.1.0'}});if(init.protocolVersion!=='2025-11-25')throw Error('Wrong version');
  const tools=await rpc('tools/list');log('✓ '+tools.tools.length+' real tools discovered');$('conn').className='success';$('conn').textContent='Connected to local MCP server';await refresh();await loadActions();await loadRing()}catch(e){showError(e)}})();
 </script></body></html>
