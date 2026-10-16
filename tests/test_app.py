@@ -1,5 +1,8 @@
 """Run: python -m unittest discover -s tests -v"""
 import importlib
+import hmac
+import hashlib
+import json
 import os
 import tempfile
 import unittest
@@ -92,6 +95,56 @@ class DeliveryTests(unittest.TestCase):
         saved = self.tool("get_delivery", delivery_id=did)
         self.assertEqual(saved["delivery"]["eta"], "Sunday")
         self.assertIn("user_correction", [e["source"] for e in saved["evidence"]])
+
+    def test_ring_signed_webhook_requires_key_and_explicit_association(self):
+        did = self.create()["delivery_id"]
+        sample = {"meta": {"version": "1.1", "time": "2026-10-16T12:00:00Z",
+                           "request_id": "synthetic-ring-test-request-1"},
+                  "data": {"id": "synthetic", "type": "motion_detected",
+                           "attributes": {"sub_type": "human", "source": "synthetic_device"}}}
+        raw = json.dumps(sample).encode()
+        old = os.environ.pop("DG_RING_HMAC_KEY", None)
+        try:
+            self.assertEqual(self.client.post("/webhooks/ring", content=raw).status_code, 503)
+            os.environ["DG_RING_HMAC_KEY"] = "test-local-only-not-production"
+            self.assertEqual(self.client.post("/webhooks/ring", content=raw).status_code, 401)
+            wrong = self.client.post("/webhooks/ring", content=raw, headers={"X-Signature": "sha256="+"0"*64})
+            self.assertEqual(wrong.status_code, 401)
+            signature = "sha256="+hmac.new(os.environ["DG_RING_HMAC_KEY"].encode(),raw,hashlib.sha256).hexdigest()
+            good = self.client.post("/webhooks/ring", content=raw, headers={"X-Signature": signature})
+            self.assertEqual(good.status_code, 200)
+            self.assertEqual(good.json()["status"], "stored")
+            retry = self.client.post("/webhooks/ring", content=raw, headers={"X-Signature": signature})
+            self.assertEqual(retry.json()["status"], "duplicate")
+            inbox = self.tool("list_ring_events")["events"]
+            self.assertEqual(len(inbox), 1)
+            self.assertIsNone(inbox[0]["linked_delivery_id"])
+            self.assertNotIn("synthetic_device", json.dumps(inbox))
+            self.assertEqual(self.tool("get_delivery", delivery_id=did)["delivery"]["doorstep_status"], "unknown")
+            linked = self.tool("attach_ring_event",delivery_id=did,event_id=inbox[0]["id"], idempotency_key="signed-event-1")
+            self.assertEqual(linked["status"], "verified")
+            self.assertEqual(self.tool("list_ring_events")["events"][0]["linked_delivery_id"],did)
+            item = self.tool("get_delivery", delivery_id=did)
+            self.assertEqual(item["delivery"]["doorstep_status"], "signed_event_linked")
+            self.assertEqual(item["delivery"]["receipt_status"], "unknown")
+        finally:
+            if old is None:
+                os.environ.pop("DG_RING_HMAC_KEY",None)
+            else:
+                os.environ["DG_RING_HMAC_KEY"] = old
+
+    def test_mutation_failure_has_durable_doneproof_record(self):
+        bad = self.rpc("tools/call", {"name":"update_carrier_status","arguments":{
+            "delivery_id":"not-present","status":"marked_delivered","idempotency_key":"failure-1"}}).json()["result"]
+        self.assertTrue(bad["isError"])
+        self.assertEqual(bad["structuredContent"]["status"],"failed")
+        aid=bad["structuredContent"]["action_id"]
+        self.assertIsNotNone(aid)
+        proof=self.tool("get_action_proof",action_id=aid)["action"]
+        self.assertEqual(proof["status"],"failed")
+        self.assertIsNone(proof["verified_at"])
+        self.assertEqual(len(self.tool("list_actions")["actions"]),1)
+        self.assertEqual(self.tool("list_deliveries")["deliveries"],[])
 
     def test_failures_do_not_fake_success(self):
         x = self.rpc("tools/call", {"name": "get_delivery", "arguments": {"delivery_id": "missing"}}).json()["result"]
