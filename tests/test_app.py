@@ -101,7 +101,8 @@ class DeliveryTests(unittest.TestCase):
         sample = {"meta": {"version": "1.1", "time": "2026-10-16T12:00:00Z",
                            "request_id": "synthetic-ring-test-request-1"},
                   "data": {"id": "synthetic", "type": "motion_detected",
-                           "attributes": {"sub_type": "human", "source": "synthetic_device"}}}
+                           "attributes": {"sub_type": "human", "source": "synthetic_device",
+                                          "timestamp": 1786715596787}}}
         raw = json.dumps(sample).encode()
         old = os.environ.pop("DG_RING_HMAC_KEY", None)
         try:
@@ -119,6 +120,7 @@ class DeliveryTests(unittest.TestCase):
             inbox = self.tool("list_ring_events")["events"]
             self.assertEqual(len(inbox), 1)
             self.assertIsNone(inbox[0]["linked_delivery_id"])
+            self.assertTrue(inbox[0]["observed_at"].startswith("2026-08-14"))
             self.assertNotIn("synthetic_device", json.dumps(inbox))
             self.assertEqual(self.tool("get_delivery", delivery_id=did)["delivery"]["doorstep_status"], "unknown")
             linked = self.tool("attach_ring_event",delivery_id=did,event_id=inbox[0]["id"], idempotency_key="signed-event-1")
@@ -156,6 +158,87 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(len(self.tool("list_deliveries")["deliveries"]), 1)
         bad = self.rpc("tools/call", {"name": "update_carrier_status", "arguments": {"delivery_id": "missing", "status": "stolen", "idempotency_key": "x"}}).json()["result"]
         self.assertTrue(bad["isError"])
+
+    def test_browser_has_persistent_help_and_conversation_controls(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+        for anchor in ('id="ask"', 'id="ask-query"', 'id="answer"',
+                       'id="advice"', 'id="timeline"', 'id="export-timeline"',
+                       'id="claim-time"'):
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, html)
+        self.assertIn("renderResolution", html)
+        self.assertIn("plan_delivery_question", html)
+        self.assertIn("data-example", html)
+        self.assertNotIn("Official Amazon Partner", html)
+
+    def test_conversational_request_routes_to_real_tools_without_mutation(self):
+        cases = {
+            "My package says delivered but I can't find it": ("resolve_missing", "prepare_resolution_steps"),
+            "Show verified actions and proof": ("check_proof", "list_actions"),
+            "What happened on my Ring camera?": ("review_timeline", "get_delivery_timeline"),
+            "What's arriving today?": ("check_upcoming", "list_deliveries"),
+            "Where is my package?": ("check_status", "get_delivery"),
+        }
+        for question, (expected, target_tool) in cases.items():
+            with self.subTest(question=question):
+                plan = self.tool("plan_delivery_question", question=question)
+                self.assertEqual(plan["intent"], expected)
+                self.assertIn(target_tool, plan["planned_tools"])
+                self.assertTrue(plan["requires_user_confirmation_for_changes"])
+                self.assertIn("not_generative_ai", plan["method"])
+        self.assertEqual(self.tool("list_actions")["actions"], [])
+        self.assertEqual(self.tool("list_deliveries")["deliveries"], [])
+        self.assertEqual(self.tool("plan_delivery_question", question="please frobnicate")
+                         ["intent"], "clarify")
+
+    def test_resolution_draft_is_reviewable_and_never_sent(self):
+        did = self.tool("import_delivery_notice", label="Sample cookbook",
+                        carrier="FedEx", eta="Friday", idempotency_key="draft-create")["delivery_id"]
+        response = self.tool("prepare_resolution_steps", delivery_id=did)
+        self.assertIn("Sample cookbook", response["support_message_draft"])
+        self.assertIn("please confirm", response["support_message_draft"].lower())
+        self.assertIn("no complaint", response["warning"].lower())
+        self.assertNotIn("submitted", json.dumps(self.tool("list_actions")).lower())
+        self.assertIn("fedex.com", response["resolution_links"][0]["url"])
+
+    def test_claim_time_and_record_time_stay_separate(self):
+        created = self.tool("import_delivery_notice", label="Book", carrier="UPS", eta="Friday",
+                            idempotency_key="time-new")["delivery_id"]
+        self.tool("update_carrier_status", delivery_id=created, status="marked_delivered",
+                  claimed_at="2026-10-16T09:05:00-07:00", idempotency_key="time-status")
+        timeline = self.tool("get_delivery_timeline", delivery_id=created)["events"]
+        claim = next(x for x in timeline if x["event_type"] == "carrier_marked_delivered")
+        self.assertEqual(claim["claimed_at"], "2026-10-16T16:05:00+00:00")
+        self.assertNotEqual(claim["claimed_at"], claim["recorded_at"])
+        self.assertEqual(claim["source_type"], "demo_manual_status")
+        self.assertIn("arrival_estimate_recorded", [e["event_type"] for e in timeline])
+        self.tool("record_package_sighting", delivery_id=created, idempotency_key="time-sighting")
+        seen = self.tool("get_delivery_timeline", delivery_id=created)["events"]
+        self.assertEqual(seen[-1]["event_type"], "package_seen")
+        self.assertIsNotNone(seen[-1]["claimed_at"])
+        self.assertTrue(seen[-1]["recorded_at"])
+        steps = self.tool("prepare_resolution_steps", delivery_id=created)
+        self.assertEqual(steps["resolution_links"][0]["url"],
+                         "https://www.ups.com/guestclaims/create?loc=en_us")
+        self.assertEqual(self.tool("get_delivery", delivery_id=created)["delivery"]["carrier_status"],
+                         "marked_delivered")
+
+    def test_time_validation_and_link_mapping(self):
+        did = self.tool("import_delivery_notice", label="Book", carrier="FedEx",
+                        eta="Friday", idempotency_key="time-fedex")["delivery_id"]
+        invalid = self.rpc("tools/call", {"name":"update_carrier_status","arguments":{
+            "delivery_id":did, "status":"marked_delivered",
+            "claimed_at":"2026-10-16T09:00:00", "idempotency_key":"bad-tz"}}).json()["result"]
+        self.assertTrue(invalid["isError"])
+        self.assertEqual(self.tool("get_delivery", delivery_id=did)["delivery"]["carrier_status"],"expected")
+        links = self.tool("prepare_resolution_steps",delivery_id=did)["resolution_links"]
+        self.assertIn("fedex.com",links[0]["url"])
+        self.assertNotIn("claim submitted",links[0]["instructions"].lower())
+        self.assertEqual(self.api.resolution_links("unknown carrier"),[])
+        self.assertIn("missingmail.usps.com",self.api.resolution_links("USPS")[0]["url"])
+        self.assertIn("amazon.com",self.api.resolution_links("Amazon Logistics")[0]["url"])
 
 
 if __name__ == "__main__":

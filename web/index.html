@@ -3,23 +3,26 @@
 <title>Delivery Guardian — Live MCP Demo</title>
 <style>
 :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:light;background:#f2f5fa;color:#17233b}
-*{box-sizing:border-box}body{margin:0}header{background:#132c58;color:white;padding:24px max(22px,calc((100% - 1000px)/2));}header h1{margin:0 0 4px;font-size:1.9rem}header p{margin:0;color:#d9e7fe}
+*{box-sizing:border-box}body{margin:0}header{background:#132c58;color:white;padding:24px max(22px,calc((100% - 1000px)/2));}header h1{margin:0 0 4px;font-size:1.9rem}header p{margin:0;color:#d9e7fe}header .platform{margin-top:5px;font-size:.78rem;color:#bfd5f8;letter-spacing:.02em}
 main{max-width:1040px;margin:20px auto;padding:0 18px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(310px,1.4fr);gap:16px}
 .panel{background:white;border:1px solid #d9e1ef;border-radius:16px;padding:20px;box-shadow:0 4px 15px #102c4a0b}
 h2{font-size:1.15rem;margin:0 0 12px}h3{font-size:1rem;margin:0 0 8px}p{line-height:1.45}.sub{font-size:.85rem;color:#465678}label{display:block;font-weight:650;margin:12px 0 5px}
 input,select,textarea{padding:11px;width:100%;background:white;color:#17233b;border:1px solid #7b8ca5;border-radius:9px;font:inherit}input:focus,select:focus,button:focus-visible{outline:3px solid #f5b531;outline-offset:2px}
 button{border:0;background:#1765bd;color:white;border-radius:10px;padding:11px 14px;font:inherit;font-weight:650;cursor:pointer}button:hover{background:#0e4b90}button.secondary{background:#e8f0fc;color:#173f78}button.secondary:hover{background:#d3e3f9}button.alert{background:#933c22}button:disabled{opacity:.5;cursor:wait}
-.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.muted{color:#526078}.error{color:#9c321d;font-weight:650}.success{color:#12613a;font-weight:650}.notice{padding:12px;background:#f2f6fb;border-radius:10px;font-size:.9rem}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#answer:not(:empty){background:#f4f7ff;border:1px solid #c8d8f0;border-radius:10px;padding:14px;margin-top:14px;line-height:1.5}#answer a{display:block;margin:8px 0;color:#114d92;font-weight:650}#answer li{margin:5px 0}#advice:not(:empty),#timeline:not(:empty){background:#f4f7ff;border:1px solid #c8d8f0;border-radius:10px;padding:14px;margin-top:14px;line-height:1.5}#advice a{display:block;margin-top:9px;color:#114d92;word-break:break-word;font-weight:650}#timeline ol{padding-left:22px}#timeline li{margin:0 0 10px}#timeline small{display:block;color:#4e5b73}.muted{color:#526078}.error{color:#9c321d;font-weight:650}.success{color:#12613a;font-weight:650}.notice{padding:12px;background:#f2f6fb;border-radius:10px;font-size:.9rem}
 .deliveries{display:grid;gap:9px}.delivery{padding:12px;text-align:left;background:#f7faff;border:1px solid #c5d6ef;color:#12345c}.delivery[aria-pressed="true"]{background:#e0f0fd;border:2px solid #1765bd}.delivery small{display:block;font-weight:400;margin-top:3px;color:#475e74}
 .pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#e9eff7;font-size:.79rem;font-weight:700;margin:2px 3px 2px 0}.pill.ok{background:#e0f3e7;color:#155936}.pill.warn{background:#ffeccf;color:#713b00}
 pre{background:#0c1830;color:#d9ecff;font-size:.73rem;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:10px;max-height:230px;overflow:auto}
 footer{text-align:center;margin:8px 0 22px;font-size:.8rem;color:#50607a}
 @media(max-width:750px){.grid{grid-template-columns:1fr}header{padding:20px}header h1{font-size:1.5rem}.panel{padding:16px}}
 </style></head><body>
-<header><h1>Delivery Guardian <span aria-hidden="true">✦</span></h1><p>Know what's coming. Know what actually arrived. Know what to do next.</p></header>
+<header><h1>Delivery Guardian <span aria-hidden="true">✦</span></h1><p>Know what's coming. Know what actually arrived. Know what to do next.</p><p class="platform">Independent Amazon Build, Ship, Shape 2026 entry · Alexa+ track MCP demo</p></header>
 <main><div class="notice"><strong>Live local software demonstration.</strong> This uses a real MCP server and database. Delivery details and doorstep events are manually entered or labeled sample data. No live carrier, Alexa device, or Ring account is connected. <span id="conn" role="status">Connecting…</span></div>
-<section class="grid"><div class="panel"><h2>Add a delivery</h2><label for="notice">Paste a shipping notice (optional)</label><textarea id="notice" rows="4" maxlength="3000" placeholder="Item: Sample groceries&#10;Carrier: Example Carrier&#10;ETA: Friday afternoon"></textarea><div class="buttons"><button type="button" class="secondary" id="extract">Extract details for review</button></div><p id="extract-note" class="sub">Only explicitly labeled fields are extracted. Nothing is saved until you review and confirm.</p><form id="add"><label for="label">Package name</label><input id="label" required maxlength="120" placeholder="Example: Grocery box"><label for="carrier">Carrier</label><input id="carrier" required maxlength="40" placeholder="Example: UPS"><label for="eta">Expected arrival</label><input id="eta" required maxlength="60" placeholder="Example: Saturday afternoon"><div class="buttons"><button type="submit">Save & verify</button><button type="button" class="secondary" id="demo">Load example</button></div></form><hr><h2>Deliveries</h2><div id="deliveries" class="deliveries" aria-live="polite">Loading…</div></div>
-<div class="panel"><h2>Delivery follow-through</h2><div id="selected">Choose or create a delivery.</div><div id="controls" hidden><label for="correction">Correct expected arrival</label><input id="correction" maxlength="60"><button id="save-correction" class="secondary">Save correction & verify</button><div class="buttons"><button id="carrier-done" class="secondary">Carrier says delivered</button><button id="received" class="secondary">I received it</button><button id="missing" class="alert">I can't find it</button><button id="doorstep" class="secondary">Add sample doorstep event</button></div><div class="buttons"><button id="guidance">What should I do?</button><button id="refresh" class="secondary">Check for issues</button></div></div><div id="advice" aria-live="polite"></div></div></section>
+<section class="panel" id="assistant-panel"><h2>Ask Delivery Guardian</h2><p class="sub">Try an Alexa+-style question. This demonstration uses transparent keyword routing and real MCP tools, not a connected Alexa device or paid AI model. Select a delivery to ask about its history.</p><form id="ask"><label for="ask-query">What would you like to know?</label><input id="ask-query" required maxlength="500" placeholder="It says delivered, but I can't find my package"><div class="buttons"><button type="submit">Find an answer</button></div></form><div class="buttons"><button class="secondary" type="button" data-example="Where is my package?">Where is it?</button><button class="secondary" type="button" data-example="My package says delivered but I can't find it">Missing package</button><button class="secondary" type="button" data-example="Show my delivery timeline">Evidence timeline</button><button class="secondary" type="button" data-example="Show verified actions">DoneProof</button></div><div id="answer" role="status" aria-live="polite"></div></section>
+<section class="panel" id="v2-panel"><h2>Package connections and imports</h2><p class="sub">No account passwords are collected. Live connections show their actual status. You can test real exported shipping notices and a registered UPS developer integration.</p><div id="provider-status" class="notice" aria-live="polite">Checking available integrations…</div><div class="grid" style="margin-top:10px"><div><label for="eml-file">Import an exported shipping email (.eml)</label><input id="eml-file" type="file" accept=".eml,text/plain"><p class="sub">Preview its fields, then confirm before saving. This does not read your Gmail account.</p><label for="csv-file">Import a seller shipping list (.csv)</label><input id="csv-file" type="file" accept=".csv,text/csv"><label for="csv-choose">Choose an imported shipment to review</label><select id="csv-choose" disabled><option>Choose a CSV file first</option></select><p class="sub">Supports simple seller exports with package, carrier and ETA columns; recipient addresses are ignored.</p></div><div><label for="ups-number">UPS tracking number (optional real API test)</label><input id="ups-number" maxlength="34" placeholder="Your actual UPS tracking number" autocomplete="off"><div class="buttons"><button type="button" id="ups-check" class="secondary">Check official UPS status</button><button type="button" id="ups-sync">Save verified UPS response to selected package</button></div><p id="ups-status" role="status" class="sub">Requires configured UPS API developer credentials. Does not save your tracking number. If configured, pressing “I can't find it” with a tracking number entered will first check for a newer UPS scan.</p><p class="sub"><a href="https://developer.ups.com/get-started" target="_blank" rel="noopener noreferrer">UPS developer setup instructions ↗</a></p></div></div></section>
+<section class="grid"><div class="panel"><h2>Add a delivery</h2><label for="notice">Paste a shipping notice (optional)</label><textarea id="notice" rows="4" maxlength="3000" placeholder="Item: Sample groceries&#10;Carrier: Example Carrier&#10;ETA: Friday afternoon"></textarea><div class="buttons"><button type="button" class="secondary" id="extract">Extract details for review</button></div><p id="extract-note" class="sub">Only explicitly labeled fields are extracted. Nothing is saved until you review and confirm.</p><form id="add"><label for="label">Package name</label><input id="label" required maxlength="120" placeholder="Example: Grocery box"><label for="carrier">Carrier</label><input id="carrier" required maxlength="40" placeholder="Example: UPS"><label for="eta">Expected arrival</label><input id="eta" required maxlength="60" placeholder="Example: Saturday afternoon"><label for="direction">Shipment direction</label><select id="direction"><option value="incoming">Receiving a package</option><option value="outgoing">Sending a package</option></select><div class="buttons"><button type="submit">Save & verify</button><button type="button" class="secondary" id="demo">Load example</button></div></form><hr><h2>Deliveries</h2><div id="deliveries" class="deliveries" aria-live="polite">Loading…</div></div>
+<div class="panel"><h2>Delivery follow-through</h2><div id="selected">Choose or create a delivery.</div><div id="controls" hidden><label for="correction">Correct expected arrival</label><input id="correction" maxlength="60"><button id="save-correction" class="secondary">Save correction & verify</button><div class="buttons"><button id="carrier-done" class="secondary">Carrier says delivered</button><button id="received" class="secondary">I received it</button><button id="missing" class="alert">I can't find it</button><button id="doorstep" class="secondary">Add sample doorstep event</button></div><label for="claim-time">Carrier's claimed delivery time (optional; from tracking)</label><input type="datetime-local" id="claim-time"><p class="sub">We record when you enter a carrier claim automatically. A time you enter above is labeled as reported by you, not verified from the carrier.</p><div class="buttons"><button id="guidance" type="button">What should I do?</button><button id="refresh" class="secondary" type="button">Check for issues</button><button id="sighting" class="secondary" type="button">I saw a package just now</button></div></div><div id="advice" role="status" aria-live="polite"></div><h3 style="margin-top:16px">Delivery evidence timeline</h3><p class="sub">Recorded time is when this app saved an event. Claimed time is what a person or provider said happened.</p><div id="timeline" aria-live="polite"></div><div class="notice" style="margin-top:14px"><h3>Camera evidence and package alerts</h3><label for="v2-camera-file">Attach a saved Blink or other camera clip (kept on this device)</label><input id="v2-camera-file" type="file" accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png"><label><input id="v2-include-video" type="checkbox" style="width:auto"> Include the selected clip in my downloadable evidence ZIP</label><p class="sub">Clips are not sent to our server. Review the actual footage and ask the carrier which formats it accepts.</p><div class="buttons"><button id="v2-zip" type="button" class="secondary">Save report and selected clip as ZIP</button></div><label><input id="v2-alert-enabled" type="checkbox" style="width:auto"> Enable alerts for this package</label><div class="buttons"><button id="v2-alert-test" type="button" class="secondary">Test phone notification</button></div><p id="v2-message" role="status" class="sub">Choose a package to change its alerts.</p></div><div class="buttons"><button type="button" class="secondary" id="export-timeline">Save evidence summary</button></div><p class="sub" id="export-message" role="status" aria-live="polite"></p></div></section>
 <section class="grid"><div class="panel"><h2>DoneProof · Verified actions</h2><p class="sub">Each change gets an action ID and is read back from the actual database. This verifies our software's record, not the real-world delivery.</p><div id="proof" aria-live="polite" class="notice">No actions yet.</div><div class="buttons"><button id="fail-test" class="secondary">Test a failing action</button></div></div>
 <div class="panel"><h2>Recent DoneProof history</h2><p class="sub">Failed mutations are recorded too; rejected requests never appear as completed.</p><div id="actions" aria-live="polite">Loading…</div></div>
 <div class="panel"><h2>Ring-format event inbox (optional)</h2><p class="sub">No live Ring account is connected. This inbox only receives HMAC-signed Ring-format events when the local demo webhook key is configured. A signed sample is not proof of a genuine Ring camera event, or proof of package delivery.</p><div class="buttons"><button id="ring-refresh" class="secondary">Check event inbox</button></div><div id="ring-events" aria-live="polite">No events loaded.</div></div>
@@ -58,10 +61,10 @@ function setProof(a){lastAction=a.action_id||lastAction;
   const p=document.createElement('p');p.className='sub';p.textContent='Action: '+(a.action_id||'not recorded')+'\nEvidence: '+JSON.stringify(a.evidence||{});$('proof').append(p)
 }
 async function refresh(){const res=await tool('list_deliveries');list=res.deliveries;$('deliveries').replaceChildren();
-  if(!list.length){$('deliveries').textContent='No deliveries yet. Add one above.';return}
+  if(!list.length){$('deliveries').textContent='No deliveries yet. Add one above.';$('controls').hidden=true;$('selected').textContent='Choose or create a delivery.';$('timeline').replaceChildren();return}
   for(const d of list){const b=document.createElement('button');b.className='delivery';b.setAttribute('aria-pressed',String(d.id===activeId));
-    b.textContent=d.label+' · '+d.carrier;const sm=document.createElement('small');sm.textContent=d.eta+' · Carrier: '+friendlyStatus(d.carrier_status)+' · Receipt: '+friendlyStatus(d.receipt_status);b.append(sm);
-    b.onclick=()=>{activeId=d.id;refresh()};$('deliveries').append(b)}
+    b.dataset.deliveryId=d.id;b.textContent=d.label+' · '+d.carrier;const sm=document.createElement('small');sm.textContent=d.eta+' · Carrier: '+friendlyStatus(d.carrier_status)+' · Receipt: '+friendlyStatus(d.receipt_status);b.append(sm);
+    b.onclick=()=>{if(activeId!==d.id)$('advice').replaceChildren();activeId=d.id;refresh()};$('deliveries').append(b)}
   if(!list.some(d=>d.id===activeId))activeId=list[0].id;
   const d=list.find(x=>x.id===activeId);$('selected').replaceChildren();
   const title=document.createElement('h3');title.textContent=d.label;$('selected').append(title);
@@ -69,24 +72,98 @@ async function refresh(){const res=await tool('list_deliveries');list=res.delive
   if(d.carrier_status==='marked_delivered'&&d.receipt_status==='user_reported_missing'){
     const warning=document.createElement('p');warning.className='pill warn';warning.textContent='Needs attention — not proof of theft';$('selected').append(warning)}
   $('controls').hidden=false;$('correction').value=d.eta;
-  for(const b of $('deliveries').children)b.setAttribute('aria-pressed',String(b.textContent.startsWith(d.label+' · '+d.carrier)));
+  await loadTimeline();
+  if(window.DGv2?.selectionChanged)await window.DGv2.selectionChanged(d);
+  for(const b of $('deliveries').children)b.setAttribute('aria-pressed',String(b.dataset.deliveryId===d.id));
 }
-async function action(name,fields){try{const a=await tool(name,{...fields,idempotency_key:key()});setProof(a);await refresh();await loadActions()}catch(e){showError(e)}}
+async function action(name,fields){try{const a=await tool(name,{...fields,idempotency_key:key()});setProof(a);await refresh();await loadActions();if(name==='confirm_delivery_receipt'&&fields.status==='user_reported_missing'){const help=await tool('prepare_resolution_steps',{delivery_id:fields.delivery_id});renderResolution($('advice'),help);if(window.DGv2?.checkFirstUpdate)await window.DGv2.checkFirstUpdate(fields.delivery_id)}}catch(e){showError(e);$('advice').textContent='Action or guidance could not be completed: '+(e?.message||String(e))}}
 $('extract').onclick=async()=>{try{const result=await tool('parse_delivery_notice',{text:$('notice').value});
   for(const field of ['label','carrier','eta'])if(result.fields[field])$(field).value=result.fields[field];
   $('extract-note').textContent=result.notice+(result.missing.length?' Missing: '+result.missing.join(', '):' All required fields identified.');
   $('label').focus();}catch(e){showError(e)}};
 $('save-correction').onclick=()=>action('correct_delivery_eta',{delivery_id:activeId,eta:$('correction').value});
 $('add').onsubmit=async e=>{e.preventDefault();try{
- const a=await tool('import_delivery_notice',{label:$('label').value,carrier:$('carrier').value,eta:$('eta').value,idempotency_key:key()});activeId=a.delivery_id;setProof(a);$('add').reset();await refresh();await loadActions()
+ const a=await tool('import_delivery_notice',{label:$('label').value,carrier:$('carrier').value,eta:$('eta').value,direction:$('direction').value,idempotency_key:key()});activeId=a.delivery_id;setProof(a);$('add').reset();await refresh();await loadActions()
 }catch(error){showError(error)}};
-$('demo').onclick=()=>{ $('label').value='Sample book delivery';$('carrier').value='Example Carrier';$('eta').value='Friday, 2–5 PM (sample)';$('add').requestSubmit()};
-$('carrier-done').onclick=()=>action('update_carrier_status',{delivery_id:activeId,status:'marked_delivered'});
+$('demo').onclick=()=>{ $('label').value='Sample book delivery';$('carrier').value='UPS';$('eta').value='Friday, 2–5 PM (sample)';$('add').requestSubmit()};
+$('carrier-done').onclick=()=>{const entered=$('claim-time').value;const fields={delivery_id:activeId,status:'marked_delivered'};if(entered){const stamp=new Date(entered);if(Number.isNaN(stamp.getTime())){$('advice').textContent='Check the delivery time before saving.';return}fields.claimed_at=stamp.toISOString()}action('update_carrier_status',fields)};
 $('received').onclick=()=>action('confirm_delivery_receipt',{delivery_id:activeId,status:'user_confirmed_received'});
 $('missing').onclick=()=>action('confirm_delivery_receipt',{delivery_id:activeId,status:'user_reported_missing'});
 $('doorstep').onclick=()=>action('record_doorstep_event',{delivery_id:activeId,event:'package_like_activity'});
+$('sighting').onclick=()=>action('record_package_sighting',{delivery_id:activeId});
+async function loadTimeline(){if(!activeId)return;const id=activeId;try{const r=await tool('get_delivery_timeline',{delivery_id:id});if(activeId!==id)return;const el=$('timeline');el.replaceChildren();if(!r.events.length){el.textContent='No events recorded yet.';return}const ol=document.createElement('ol');for(const e of r.events){const li=document.createElement('li');const title=document.createElement('strong');title.textContent=e.event_type.replaceAll('_',' ');li.append(title);const claimed=document.createElement('small');const nice=t=>t?new Date(t).toLocaleString():'not supplied';claimed.textContent='Time claimed / observed: '+nice(e.claimed_at)+' · Saved: '+nice(e.recorded_at);li.append(claimed);const src=document.createElement('small');src.textContent='Source: '+e.source_type+' · '+e.details;li.append(src);ol.append(li)}el.append(ol)}catch(e){$('timeline').textContent='Could not load the timeline: '+(e?.message||String(e))}}
 $('refresh').onclick=async()=>{try{const r=await tool('find_delivery_issues');$('advice').textContent=r.issues.length?'Needs attention: '+r.issues.map(x=>x.label).join(', '):'No reported missing-package conflicts.'}catch(e){showError(e)}};
-$('guidance').onclick=async()=>{try{const r=await tool('prepare_resolution_steps',{delivery_id:activeId});$('advice').replaceChildren();let heading=document.createElement('h3');heading.textContent='Suggested next steps';$('advice').append(heading);const ol=document.createElement('ol');for(const s of r.steps){const li=document.createElement('li');li.textContent=s;ol.append(li)}$('advice').append(ol);let p=document.createElement('p');p.className='sub';p.textContent=r.warning;$('advice').append(p)}catch(e){showError(e)}};
+function appendText(root,text,tag='p',className=''){
+  const el=document.createElement(tag);el.textContent=text;if(className)el.className=className;root.append(el);return el
+}
+function appendOfficialLinks(root,links){
+  if(!links?.length){appendText(root,'No verified direct report link for this carrier. Check the carrier name or official retailer order page.','p','sub');return}
+  for(const link of links){
+    const a=document.createElement('a');a.href=link.url;a.rel='noopener noreferrer';a.target='_blank';a.textContent=link.label+' ↗';root.append(a);
+    appendText(root,link.instructions,'p','sub')
+  }
+}
+function renderResolution(root,result,clear=true){
+  if(clear)root.replaceChildren();appendText(root,'Suggested next steps','h3');
+  const ol=document.createElement('ol');for(const step of result.steps||[])appendText(ol,step,'li');root.append(ol);
+  appendOfficialLinks(root,result.resolution_links);
+  if(result.support_message_draft){
+    const label=document.createElement('label');label.textContent='Editable support message (not sent)';root.append(label);
+    const area=document.createElement('textarea');area.rows=5;area.value=result.support_message_draft;area.setAttribute('aria-label','Edit your missing-package support message');root.append(area);
+    const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Copy message';
+    const status=document.createElement('span');status.className='sub';
+    copy.onclick=async()=>{try{await navigator.clipboard.writeText(area.value);status.textContent=' Copied. Review before sending.'}catch(e){area.focus();area.select();status.textContent=' Select and copy this message in your browser.'}};
+    root.append(copy,status)
+  }
+  if(window.DGv2?.decorateResolution)window.DGv2.decorateResolution(root,result);
+  appendText(root,result.warning,'p','sub')
+}
+$('guidance').onclick=async()=>{try{const result=await tool('prepare_resolution_steps',{delivery_id:activeId});renderResolution($('advice'),result)}catch(e){showError(e);$('advice').textContent='Could not prepare guidance: '+(e?.message||String(e))}};
+$('assistant-panel').querySelectorAll('[data-example]').forEach(b=>b.onclick=()=>{
+  $('ask-query').value=b.getAttribute('data-example');$('ask').requestSubmit()
+});
+$('ask').onsubmit=async e=>{e.preventDefault();const root=$('answer');root.replaceChildren();
+  try{
+    const plan=await tool('plan_delivery_question',{question:$('ask-query').value});
+    appendText(root,'Route: '+plan.intent.replaceAll('_',' ')+' · Rule-based demo, not live Alexa+ reasoning','p','sub');
+    if(plan.intent==='clarify'){
+      appendText(root,'Try one of these questions: '+plan.suggestions.join(' | '));return
+    }
+    if(plan.intent==='check_proof'){
+      const result=await tool('list_actions');appendText(root,'Last verified or attempted software actions','h3');
+      if(!result.actions.length)appendText(root,'No actions recorded yet. Add a sample delivery to start.');
+      else {const ul=document.createElement('ul');for(const a of result.actions.slice(0,6))appendText(ul,a.tool.replaceAll('_',' ')+' · '+a.status+' · '+a.id.slice(0,8),'li');root.append(ul)}
+      appendText(root,'DoneProof verifies saved app actions—not whether a courier physically delivered a package.','p','sub');return
+    }
+    if(plan.intent==='check_upcoming'){
+      const result=await tool('list_deliveries');appendText(root,'Your recorded deliveries','h3');
+      if(!result.deliveries.length)appendText(root,'No deliveries saved yet.');
+      else {const ul=document.createElement('ul');for(const d of result.deliveries.slice(0,12))appendText(ul,d.label+' · '+d.carrier+' · ETA entered: '+d.eta+' · '+friendlyStatus(d.carrier_status),'li');root.append(ul)}
+      appendText(root,'ETAs are entered as text. This demo does not independently verify which packages are due today.','p','sub');return
+    }
+    if(!activeId){appendText(root,'Choose or add a delivery first.');return}
+    const details=await tool('get_delivery',{delivery_id:activeId});const d=details.delivery;
+    appendText(root,d.label+' · '+d.carrier,'h3');
+    appendText(root,'Carrier record: '+friendlyStatus(d.carrier_status)+' · Your receipt: '+friendlyStatus(d.receipt_status));
+    if(plan.intent==='resolve_missing'){
+      const issue=await tool('find_delivery_issues');
+      const flagged=issue.issues.some(x=>x.delivery_id===activeId);
+      appendText(root,flagged?'The carrier/user reports conflict. Your case needs attention.':'No confirmed carrier-versus-recipient conflict has been recorded for this package.','p','sub');
+      const resolution=await tool('prepare_resolution_steps',{delivery_id:activeId});
+      renderResolution(root,resolution,false)
+    }else if(plan.intent==='check_status'){
+      appendText(root,'This is the last saved status; no live carrier API was contacted.','p','sub')
+    }
+    if(plan.intent==='review_timeline'||plan.intent==='check_status'){
+      const history=await tool('get_delivery_timeline',{delivery_id:activeId});
+      const ol=document.createElement('ol');
+      for(const record of history.events.slice(-6))appendText(ol,record.event_type.replaceAll('_',' ')+' · '+(record.claimed_at||record.recorded_at)+' · '+record.source_type,'li');
+      if(ol.children.length){appendText(root,'Recorded evidence','h3');root.append(ol)}
+      else appendText(root,'No timeline events recorded.')
+    }
+    appendText(root,'MCP read-only response: no provider was contacted and no claim was submitted.','p','sub');
+  }catch(error){showError(error);appendText(root,'Could not complete question: '+(error?.message||String(error)))}
+};
 $('fail-test').onclick=async()=>{try{await tool('update_carrier_status',{delivery_id:'no-such-delivery',status:'marked_delivered',idempotency_key:key()});$('proof').textContent='Unexpected success'}catch(e){log('✓ Expected failed mutation saved without false success');await loadActions()}};
 async function loadActions(){try{const r=await tool('list_actions');$('actions').replaceChildren();
   if(!r.actions.length){$('actions').textContent='No operations recorded yet.';return}
@@ -97,6 +174,14 @@ async function loadRing(){try{const r=await tool('list_ring_events');$('ring-eve
   for(const e of r.events){const wrap=document.createElement('div');wrap.className='notice';const detail=document.createElement('p');detail.textContent=e.event_type+' ('+e.subtype+') · '+e.observed_at+' · '+(e.linked_delivery_id?'Linked to delivery':'Unlinked · signed format, source unconfirmed');wrap.append(detail);
     if(!e.linked_delivery_id){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Link to selected delivery';b.onclick=async()=>{if(!activeId){$('ring-events').prepend(document.createTextNode('Select a delivery first. '));return}await action('attach_ring_event',{delivery_id:activeId,event_id:e.id});await loadRing()};wrap.append(b)}$('ring-events').append(wrap)}}catch(e){showError(e)}}
 $('ring-refresh').onclick=loadRing;
+$('export-timeline').onclick=async()=>{if(!activeId)return;try{const d=list.find(x=>x.id===activeId);const r=await tool('get_delivery_timeline',{delivery_id:activeId});const entries=r.events.map(e=>[
+  e.event_type.replaceAll('_',' '),'Source: '+e.source_type,'Claimed / observed: '+(e.claimed_at||'not supplied'),'Saved by Delivery Guardian: '+e.recorded_at,'Notes: '+e.details
+].join('\n')).join('\n\n');const report=[
+  'Delivery Guardian - user-reviewable evidence summary','Local sample/software record; not independent carrier or camera verification',
+  'Package: '+d.label,'Carrier: '+d.carrier,'Carrier state: '+friendlyStatus(d.carrier_status),
+  'Receipt state: '+friendlyStatus(d.receipt_status),'Generated: '+new Date().toISOString(),
+  '',entries,'',r.explanation,'No missing-package report has been submitted by Delivery Guardian.'
+].join('\n');const blob=new Blob([report],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='delivery-guardian-evidence.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);$('export-message').textContent='Evidence summary saved. Review it before sending.'}catch(e){$('export-message').textContent='Could not save summary: '+(e?.message||String(e))}};
 (async()=>{try{const init=await rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'delivery-guardian-browser',version:'0.1.0'}});if(init.protocolVersion!=='2025-11-25')throw Error('Wrong version');
  const tools=await rpc('tools/list');log('✓ '+tools.tools.length+' real tools discovered');$('conn').className='success';$('conn').textContent='Connected to local MCP server';await refresh();await loadActions();await loadRing()}catch(e){showError(e)}})();
-</script></body></html>
+</script><script src="/v2.js" defer></script></body></html>

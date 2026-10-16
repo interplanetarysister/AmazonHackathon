@@ -57,3 +57,25 @@ Official contest: https://amazonappdev2026.devpost.com/
 - [Reviewed first-run prompt for Kiro](.kiro/prompts/delivery-guardian-first-run.md) — a **bounded execution milestone**, not an unconditional request to build the entire product.
 
 **Owner preflight:** Sync the project safely, inspect `/usage` and `/model` in Kiro CLI, ensure the selected model is available on the Free plan and that sufficient credit headroom remains to preserve the final credit. A single complex request can cost multiple credits, so a hard credit cap is not guaranteed. In Kiro V3, use `/prompts list` and choose the saved prompt or paste its contents; in V2, paste the prompt if local prompt invocation is unavailable. Do not run both versions of the same instruction. The first batch ends with tested code, a 10%-increment progress report when earned, and a sample for user feedback. Do not run unattended agent jobs or paid cloud tasks.
+
+## Next milestone on feature branch (not merged or release-certified)
+
+The `feat/missing-package-resolution-paths` branch stages a complete *demo-only* delivery-resolution workflow:
+
+- A real MCP `plan_delivery_question` tool performs **explicitly labeled deterministic keyword routing** (not generative AI or live Alexa). The browser uses its plan to invoke real read tools and display results.
+- Provider-specific UPS/FedEx/USPS/Amazon official resolution links plus editable, unsent support drafts; reporting requires human action.
+- UTC-stamped append-only package timeline distinguishing manually entered carrier claim times, local receipt of claims, human observations and signed Ring-format events. No production Ring device/account connectivity is claimed.
+- Mobile-friendly persistent help, one-click missing-package next steps, an exportable reviewable evidence summary, transparent failed DoneProof actions, and discreet hackathon identification.
+- Tests extend the backend suite with timestamp validation, deterministic routing, official destinations and static UI smoke checks.
+
+**Not yet verified:** This branch has *not* undergone the user's current Termux test run or browser walkthrough; the newer locally tested UI shown in screenshots may not be committed. **Do not merge or replace the local working interface until reconciled.**
+
+To verify this branch (zero paid services required):
+
+```sh
+python -m unittest discover -s tests -v
+python scripts/verify_client.py     # uses existing Node.js; exits 2 if unavailable
+uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+See [Judge walkthrough](docs/judge-walkthrough.md), [timestamp and connection boundaries](docs/delivery-evidence-and-connections.md), and [future connected-accounts architecture](docs/connected-delivery-roadmap.md). Real provider OAuth, sender messaging, commercial account APIs, camera analysis, and consumer multiuser accounts are **not** implemented on this feature branch and are not hackathon release blockers.
