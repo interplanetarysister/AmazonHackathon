@@ -101,8 +101,8 @@ function appendOfficialLinks(root,links){
     appendText(root,link.instructions,'p','sub')
   }
 }
-function renderResolution(root,result){
-  root.replaceChildren();appendText(root,'Suggested next steps','h3');
+function renderResolution(root,result,clear=true){
+  if(clear)root.replaceChildren();appendText(root,'Suggested next steps','h3');
   const ol=document.createElement('ol');for(const step of result.steps||[])appendText(ol,step,'li');root.append(ol);
   appendOfficialLinks(root,result.resolution_links);
   if(result.support_message_draft){
@@ -147,7 +147,7 @@ $('ask').onsubmit=async e=>{e.preventDefault();const root=$('answer');root.repla
       const flagged=issue.issues.some(x=>x.delivery_id===activeId);
       appendText(root,flagged?'The carrier/user reports conflict. Your case needs attention.':'No confirmed carrier-versus-recipient conflict has been recorded for this package.','p','sub');
       const resolution=await tool('prepare_resolution_steps',{delivery_id:activeId});
-      renderResolution(root,resolution)
+      renderResolution(root,resolution,false)
     }else if(plan.intent==='check_status'){
       appendText(root,'This is the last saved status; no live carrier API was contacted.','p','sub')
     }
