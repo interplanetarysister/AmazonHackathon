@@ -101,7 +101,8 @@ class DeliveryTests(unittest.TestCase):
         sample = {"meta": {"version": "1.1", "time": "2026-10-16T12:00:00Z",
                            "request_id": "synthetic-ring-test-request-1"},
                   "data": {"id": "synthetic", "type": "motion_detected",
-                           "attributes": {"sub_type": "human", "source": "synthetic_device"}}}
+                           "attributes": {"sub_type": "human", "source": "synthetic_device",
+                                          "timestamp": 1786715596787}}}
         raw = json.dumps(sample).encode()
         old = os.environ.pop("DG_RING_HMAC_KEY", None)
         try:
@@ -119,6 +120,7 @@ class DeliveryTests(unittest.TestCase):
             inbox = self.tool("list_ring_events")["events"]
             self.assertEqual(len(inbox), 1)
             self.assertIsNone(inbox[0]["linked_delivery_id"])
+            self.assertTrue(inbox[0]["observed_at"].startswith("2026-08-14"))
             self.assertNotIn("synthetic_device", json.dumps(inbox))
             self.assertEqual(self.tool("get_delivery", delivery_id=did)["delivery"]["doorstep_status"], "unknown")
             linked = self.tool("attach_ring_event",delivery_id=did,event_id=inbox[0]["id"], idempotency_key="signed-event-1")
@@ -171,7 +173,7 @@ class DeliveryTests(unittest.TestCase):
         self.tool("record_package_sighting", delivery_id=created, idempotency_key="time-sighting")
         seen = self.tool("get_delivery_timeline", delivery_id=created)["events"]
         self.assertEqual(seen[-1]["event_type"], "package_seen")
-        self.assertIsNone(seen[-1]["claimed_at"])
+        self.assertIsNotNone(seen[-1]["claimed_at"])
         self.assertTrue(seen[-1]["recorded_at"])
         steps = self.tool("prepare_resolution_steps", delivery_id=created)
         self.assertEqual(steps["resolution_links"][0]["url"],
