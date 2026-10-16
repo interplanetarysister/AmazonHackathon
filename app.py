@@ -32,6 +32,18 @@ DATABASE = os.environ.get("DG_DB_PATH", str(Path(__file__).parent / "delivery-gu
 app = FastAPI(title="Delivery Guardian — MCP demo", docs_url=None, redoc_url=None)
 
 
+@app.middleware("http")
+async def private_demo_headers(request: Request, call_next):
+    """Discourage caching/embedding of personal local shipping information."""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
+
 def utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
