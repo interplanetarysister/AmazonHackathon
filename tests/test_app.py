@@ -159,6 +159,20 @@ class DeliveryTests(unittest.TestCase):
         bad = self.rpc("tools/call", {"name": "update_carrier_status", "arguments": {"delivery_id": "missing", "status": "stolen", "idempotency_key": "x"}}).json()["result"]
         self.assertTrue(bad["isError"])
 
+    def test_browser_has_persistent_help_and_conversation_controls(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.text
+        for anchor in ('id="ask"', 'id="ask-query"', 'id="answer"',
+                       'id="advice"', 'id="timeline"', 'id="export-timeline"',
+                       'id="claim-time"'):
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, html)
+        self.assertIn("renderResolution", html)
+        self.assertIn("plan_delivery_question", html)
+        self.assertIn("data-example", html)
+        self.assertNotIn("Official Amazon Partner", html)
+
     def test_conversational_request_routes_to_real_tools_without_mutation(self):
         cases = {
             "My package says delivered but I can't find it": ("resolve_missing", "prepare_resolution_steps"),
