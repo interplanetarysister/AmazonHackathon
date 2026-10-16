@@ -598,6 +598,13 @@ def home():
     return FileResponse(Path(__file__).parent / "web" / "index.html", media_type="text/html")
 
 
+@app.get("/v2.js")
+def v2_client():
+    return FileResponse(Path(__file__).parent / "web" / "v2.js",
+                        media_type="application/javascript",
+                        headers={"Cache-Control": "no-store"})
+
+
 @app.get("/notify-sw.js")
 def notification_worker():
     # Minimal same-origin service worker for explicitly opted-in browser notifications.
