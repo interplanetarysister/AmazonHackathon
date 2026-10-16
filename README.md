@@ -1,6 +1,6 @@
 # Delivery Guardian — Amazon Build, Ship, Shape Hackathon
 
-**Status:** Local working MVP milestone 1 committed and backend-tested; Ring API integration, independent MCP SDK interoperability, browser end-to-end acceptance, and Devpost submission are **not yet complete**.
+**Status:** Local working MVP milestone 1 committed and backend-tested; live Ring Playground/API integration, independent official MCP SDK interoperability, public production readiness, and Devpost submission are **not yet complete**.
 
 **Working name:** Delivery Guardian  
 **Selected ideas:** #11 Delivery Guardian + #1 DoneProof + #5 Ring Resolution  
@@ -43,10 +43,10 @@ uvicorn app:app --host 127.0.0.1 --port 8000
 
 Open `http://127.0.0.1:8000` in a browser on the same device. No hardware or online API key required.
 
-**Implemented and backend-tested (Oct 16):** stateless MCP Streamable HTTP 2025-11-25 JSON-RPC `initialize`, `tools/list`, `tools/call`; eleven real tools; SQLite persistence; a shipping-notice text parser with user review, imported/manual delivery records and verified ETA corrections; user-confirmed receipt and manually entered carrier status; local fixture doorstep events; delivery mismatch detection; human-reviewed support guidance; DoneProof local read-back ledger with idempotency, and five passing backend tests. The UI JavaScript passes syntax validation.
+**Implemented and backend-tested (Oct 16):** stateless MCP Streamable HTTP 2025-11-25 JSON-RPC `initialize`, `tools/list`, `tools/call`; fourteen real tools; SQLite persistence; a shipping-notice text parser with user review, imported/manual delivery records and verified ETA corrections; user-confirmed receipt and manually entered carrier status; local fixture doorstep events; delivery mismatch detection; human-reviewed support guidance; DoneProof local read-back ledger with idempotency, persistently recorded failed mutations, a signed Ring-format webhook inbox (raw-body HMAC-SHA256 verification and replay protection), explicit event-to-delivery association, and seven passing backend tests. JavaScript passes syntax validation.
 
-**Not verified yet:** browser end-to-end interaction (test environment blocked Chromium's localhost network), independent MCP SDK interoperability, Ring Playground/API calls, actual third-party carrier or email connections, live Alexa+ device access, authentication/multiuser security, public deployment, and Devpost submission. **This is a local demo, not public production.** Never advertise local fixture activity as a Ring event.
+**Browser proof:** Chromium exercised the running UI JavaScript against the real FastAPI/SQLite application through a local browser test bridge: create sample, enter delivered claim, report missing, show guidance, record failed mutation, and reopen a fresh page with persistent data; no JavaScript exceptions. Direct networked browser-to-localhost communication was blocked by the test environment, so native HTTP browser E2E should still be confirmed in Termux.\n\n**Not verified yet:** official MCP SDK interoperability, Ring Playground/API calls, actual third-party carrier or email connections, live Alexa+ device access, authentication/multiuser security, public deployment, and Devpost submission. **This is a local demo, not public production.** Never advertise local fixture activity as a Ring event.
 
-**Next priority:** Validate a local real-browser run on user's Termux environment; test official MCP SDK interoperability; investigate official Ring Playground sandbox permissions; add meaningful actual integration only if feasible before deadline; harden reproducibility, accessibility, and capture a genuine under-three-minute demo.
+**Next priority:** Run a real browser-to-localhost demo on Termux, verify independent MCP SDK interoperability, test the official Ring Playground if accessible, then finalize the friction log, demo video, setup validation and Devpost submission. The signed Ring-format test fixture is not a real Ring event. No Kiro credits or paid services were consumed.
 
 Official contest: https://amazonappdev2026.devpost.com/
