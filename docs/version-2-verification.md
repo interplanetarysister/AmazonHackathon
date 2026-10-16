@@ -29,10 +29,11 @@ The new directory will be a separate checkout, possibly at detached HEAD, which 
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python scripts/verify_client.py
+python scripts/smoke_mcp.py
 uvicorn app:app --host 127.0.0.1 --port 8001
 ```
 
-Open `http://127.0.0.1:8001` in a browser on the same Android phone. The browser's own localhost is the Termux process on that phone. The `verify_client.py` check requires Node.js (Node 20+); it exits nonzero if Node is missing rather than claiming a pass.
+Open `http://127.0.0.1:8001` in a browser on the same Android phone. The browser's own localhost is the Termux process on that phone. The `verify_client.py` check requires Node.js (Node 20+); it exits nonzero if Node is missing rather than claiming a pass. The `smoke_mcp.py` check starts an **independent real HTTP server** with a throwaway database and exercises the MCP protocol without relying on the browser or personal accounts.
 
 If any test fails, preserve and report the full failing test name and traceback without private account data or real tracking numbers. **A Python syntax check or browser render alone is not proof the app works.**
 
