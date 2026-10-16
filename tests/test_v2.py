@@ -147,7 +147,11 @@ class Version2Tests(unittest.TestCase):
         for route in ["/", "/v2.js", "/notify-sw.js"]:
             response=self.http.get(route)
             self.assertEqual(response.status_code,200,route)
-        html=self.http.get("/").text
+        response=self.http.get("/")
+        self.assertEqual(response.headers["cache-control"],"no-store")
+        self.assertEqual(response.headers["x-frame-options"],"DENY")
+        self.assertEqual(response.headers["referrer-policy"],"no-referrer")
+        html=response.text
         for item in ('id="csv-file"','id="eml-file"','id="ups-number"',
                      'id="v2-camera-file"','id="v2-zip"','id="v2-alert-enabled"'):
             self.assertIn(item,html)
