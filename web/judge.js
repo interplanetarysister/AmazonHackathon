@@ -25,11 +25,51 @@ function choose(id){
  node('p','Claim status: '+p.claim_status.replaceAll('_',' '),root);
  link('Open official '+p.carrier+' support/claim page (no submission)',p.support_url,root);
  const cam=$('judge-video');cam.replaceChildren();
- node('p','Blink-style camera timeline (SIMULATION). Real third-party footage below is only an illustration, unrelated to these package records.',cam);
- const names=p.issue==='received'?['delivery','received']:p.issue==='possible_theft'?['delivery','theft']:p.issue==='missing_at_dropoff'?['delivery']:['delivery'];
- for(const name of names){const v=data.camera_clips[name];node('p',name.replaceAll('_',' ')+' — '+v.credit+' — '+v.license,cam);link('Watch actual licensed '+name+' footage',v.url,cam);
- if(name==='theft'){const vid=document.createElement('video');vid.controls=true;vid.preload='none';vid.style.width='100%';vid.style.maxHeight='240px';vid.src='/demo-media/porch-pirates-cc-by-3.0.mp4';cam.appendChild(vid);node('p','To enable this playable MP4, run python scripts/prepare_demo_video.py with ffmpeg installed. Otherwise use the credited source link above.',cam);}
+ node('p','BLINK CONNECTED — SIMULATION. Matched to '+p.id+'. Actual third-party footage is illustrative and is NOT video of this fictional shipment.',cam);
+ const scenes={
+ 'SIM-1001':[['Delivery captured','delivery'],['Possible package removal','theft']],
+ 'SIM-1002':[['Carrier-reported arrival window','delivery']],
+ 'SIM-1003':[['Last known illustrative handling','delivery']],
+ 'SIM-1004':[['Delivery window reference','delivery']],
+ 'SIM-1005':[['Arrival recorded','delivery'],['Package received','received']]
+ };
+ const player=document.createElement('video');player.controls=true;player.playsInline=true;player.preload='metadata';
+ player.style.width='100%';player.style.aspectRatio='16 / 9';player.style.background='#091426';player.style.borderRadius='12px';
+ player.setAttribute('aria-label','Simulated Blink playback for '+p.id);
+ cam.appendChild(player);
+ const note=node('p','Choose a recording below. This is NOT live Blink hardware.',cam);
+ const local={
+   delivery:'/demo-media/dropoff.mp4',
+   received:'/demo-media/received.mp4',
+   theft:'/demo-media/porch-pirates-cc-by-3.0.mp4'
+ };
+ let uploadedURL=null;
+ const entries=scenes[p.id]||[['Delivery reference','delivery']];
+ function play(src,label){
+   player.pause();player.src=src;player.load();
+   note.textContent='Now viewing: '+label+' — illustrative recorded footage matched to fictional '+p.id+'.';
+   player.play().catch(()=>{note.textContent+=' Press Play to start.';});
  }
+ for(const [label,kind] of entries){
+   const asset=data.camera_clips[kind];
+   const b=node('button','Play '+label,cam);b.type='button';b.className='secondary';b.style.margin='6px';
+   b.onclick=()=>play(local[kind],label);
+   node('p',asset.credit+' • '+asset.license,cam);
+   link('Source and attribution for '+label,asset.url,cam);
+ }
+ const uploadLabel=node('label','Add your own Blink clip (optional; kept in this browser session)',cam);
+ const upload=document.createElement('input');upload.type='file';upload.accept='video/*';
+ upload.id='judge-video-upload';uploadLabel.htmlFor=upload.id;cam.appendChild(upload);
+ upload.onchange=()=>{
+   const file=upload.files?.[0];if(!file)return;
+   if(!file.type.startsWith('video/')){note.textContent='Select a video file.';return;}
+   if(file.size>150*1024*1024){note.textContent='Video must be under 150 MB.';return;}
+   if(uploadedURL)URL.revokeObjectURL(uploadedURL);
+   uploadedURL=URL.createObjectURL(file);
+   play(uploadedURL,'User-provided local clip');
+ };
+ const preparation=node('p','Preloaded video uses locally prepared MP4 files. If a recording is unavailable, run the free media preparation script; original source links remain available.',cam);
+ preparation.className='sub';
  $('judge-claim-result').textContent=p.claim_status==='demo_claim_submitted'?'Previous demo claim saved: '+p.claim_notes:'';
 }
 $('judge-load').onclick=async()=>{try{data=await call('judge_demo_dashboard');render();$('judge-claim-result').textContent='';}catch(e){$('judge-connections').textContent='Load failed: '+e.message}};
