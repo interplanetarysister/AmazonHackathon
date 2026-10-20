@@ -126,7 +126,9 @@ class Version2Tests(unittest.TestCase):
         self.assertEqual(api_events[0]["claimed_at"], sample["carrier_event_at"])
         self.assertIn("official_ups_tracking_api_sandbox", api_events[0]["source_type"])
         summary = self.call("prepare_resolution_steps", delivery_id=did)
-        self.assertTrue(summary["first_action"]["done"])
+        self.assertFalse(summary["first_action"]["done"])
+        self.assertEqual(summary["first_action"]["status"], "ups_sandbox_test_only")
+        self.assertEqual(self.call("get_delivery", delivery_id=did)["delivery"]["carrier_status"], "expected")
         self.assertIsNotNone(summary["first_action"]["checked_at"])
 
     def test_original_record_migrates_for_direction(self):
@@ -142,6 +144,9 @@ class Version2Tests(unittest.TestCase):
                          "unknown", "unknown", "user_entered", "2026-10-16", "2026-10-16"))
         item = self.call("get_delivery", delivery_id="old")["delivery"]
         self.assertEqual(item["direction"], "incoming")
+        samples = self.call("seed_demo_logistics", demo_user="migration-check")
+        self.assertEqual(samples["created"], 5)
+        self.assertEqual(len(self.call("list_demo_logistics", demo_user="migration-check")["cases"]), 5)
 
     def test_v2_routes_and_assets(self):
         for route in ["/", "/v2.js", "/notify-sw.js"]:
