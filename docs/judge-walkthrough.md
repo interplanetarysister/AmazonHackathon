@@ -1,11 +1,11 @@
 # Delivery Guardian — judge-ready local walkthrough (feature-branch draft)
 
-**Scope:** `feat/missing-package-resolution-paths`; this is an independent hackathon demo, not a live Amazon/Alexa+/Ring or carrier-connected application. Before recording, reconcile the owner's newer Termux local UI with this branch, run the test suite, and verify behavior in a real browser.
+**Scope:** `integration/judge-ready-20261020` (pre-merge candidate); this is an independent hackathon demo, not a live Amazon/Alexa+/Ring or carrier-connected application. Before recording, reconcile the owner's newer Termux local UI with this branch, run the test suite, and verify behavior in a real browser.
 
 ## Free setup
 
 ```sh
-git checkout feat/missing-package-resolution-paths
+git switch integration/judge-ready-20261020
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python scripts/verify_client.py
@@ -24,7 +24,7 @@ If preparing a clean demonstration, optionally set `DG_DB_PATH` to a fresh tempo
 - **0:55–1:15 — Missing:** Click **I can't find it**. Show the durable resolution guidance, UPS direct claim form link, and editable support message. No complaint or email is sent by this app.
 - **1:15–1:40 — Ask question:** Enter "My package says delivered but I can't find it." Watch the browser call the real MCP `plan_delivery_question`, `get_delivery`, `find_delivery_issues`, and `prepare_resolution_steps`. This is a deterministic keyword planner, not an LLM or connected Alexa+ device.
 - **1:40–2:05 — Ring distinction:** Click **Add sample doorstep event**. Show the sample-only provenance and recorded event. If a genuine Ring Playground API call has been separately accomplished, demonstrate it truthfully rather than displaying fake device footage.
-- **2:05–2:25 — Evidence:** Read the timeline's actual recorded/claimed timestamps. Click **Save evidence summary** and show the redacted text export.
+- **2:05–2:25 — Evidence:** Read the timeline's actual recorded/claimed timestamps. Click **Save evidence summary** and show the local text export (which may contain entered personal details; use synthetic data only).
 - **2:25–2:40 — DoneProof:** Click **Test a failing action**; show the failure recorded rather than claimed as done.
 - **2:40–2:55 — Persistence:** Refresh the browser and show the package and action ledger still exist; explain that only local database state has been verified.
 
@@ -46,7 +46,7 @@ Actual outcomes and timing must be captured in a real recording, not edited in a
 - **Amazon branding:** independent 2026 hackathon entry; no partnership or certified "Works with Alexa" claims.
 - **Alexa+ route:** local self-hosted MCP + web MCP client only. The actual Alexa+ SDK is gated. The tools are invoked, not merely depicted.
 - **Ring:** signed Ring-format fixture/hook is not proof a customer camera was connected or that an event came from real Ring hardware.
-- **Carrier:** statuses and times are entered manually. Opening a carrier page is not a filed complaint.
+- **Carrier:** statuses and times are entered manually by default. Optional authorized UPS API calls are labeled sandbox or production; sandbox responses never replace the saved carrier status. Opening a carrier page is not a filed complaint.
 - **DoneProof:** a verified local database write is not a verified real-world delivery.
 - **Credentials:** do not expose personal login sessions in the public video.
 
