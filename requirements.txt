@@ -1,2 +1,8 @@
+# Package P.I. runtime and judge-test dependencies
+# Python 3.11-3.13 recommended. Native Termux Python 3.14 may need
+# a compatible pydantic-core build environment.
 fastapi>=0.110,<1
 uvicorn>=0.29,<1
+httpx>=0.27,<1
+starlette>=0.37,<1
+pydantic>=2.7,<3
