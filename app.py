@@ -56,6 +56,9 @@ def db():
     con.row_factory = sqlite3.Row
     try:
         con.execute("PRAGMA busy_timeout=10000")
+        # Serialize schema initialization: concurrent first requests must not
+        # both observe a missing legacy column and run the same ALTER.
+        con.execute("BEGIN IMMEDIATE")
         con.execute("""CREATE TABLE IF NOT EXISTS deliveries (
             id TEXT PRIMARY KEY, label TEXT NOT NULL, carrier TEXT NOT NULL,
             eta TEXT NOT NULL, tracking_hint TEXT NOT NULL, carrier_status TEXT NOT NULL,
