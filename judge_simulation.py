@@ -12,7 +12,7 @@ SCAN_LOCATIONS={
 "SIM-1002":{"label":"Sample FedEx depot","latitude":47.4456,"longitude":-122.2958,"time":"16:20","meaning":"fictional marked-delivered scan; location does not prove doorstep delivery"},
 "SIM-1003":{"label":"Sample USPS sorting facility","latitude":47.4750,"longitude":-122.2040,"time":"09:20","meaning":"fictional wrong-hub scan"},
 "SIM-1004":{"label":"Sample UPS service center","latitude":47.6137,"longitude":-122.3205,"time":"17:00","meaning":"fictional out-for-delivery scan"},
-"SIM-1005":{"label":"Sample Amazon delivery station","latitude":47.6740,"longitude":-122.1215,"time":"11:55","meaning":"fictional last scan; recipient independently confirmed arrival"},
+"SIM-1005":{"label":"Amazon BFI4 Fulfillment Center — 21005 64th Ave S, Kent, WA 98032","latitude":47.413920,"longitude":-122.254630,"time":"11:55","meaning":"fictional scan assignment to a real publicly documented Amazon facility; not actual shipment telemetry","real_facility":True,"facility_id":"BFI4","facility_source":"https://events.amazontours.com/na/onsite/BFI4"},
 }
 SUPPORT={"UPS":"https://www.ups.com/us/en/support/file-a-claim","FedEx":"https://www.fedex.com/en-us/customer-support/claims.html","USPS":"https://www.usps.com/help/claims.htm","Amazon":"https://www.amazon.com/gp/css/order-history"}
 FOOTAGE={
