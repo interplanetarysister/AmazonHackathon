@@ -1,6 +1,6 @@
 # Judge footage source and attribution register
 
-All five package histories, Gmail messages, courier statuses, camera timestamps and claims are synthetic test fixtures. **Real recordings below are illustrative, not evidence for the sample shipments.** No real Blink feed or Gmail connection is used. Do not label stock or third-party camera footage as a recording from a fictional delivery. In the demo UI, open the actual licensed footage using its source link; the Wikimedia Ogg preview is offered where supported, with an original-file fallback.
+All five package histories, Gmail messages, courier statuses, camera timestamps and claims are synthetic test fixtures. **Real recordings below are illustrative, not evidence for the sample shipments.** No real Blink feed or Gmail connection is used. Do not label stock or third-party camera footage as a recording from a fictional delivery. In the demo UI, open the actual licensed footage using its source link; an optional locally converted MP4 is offered after the judge runs `python scripts/prepare_demo_video.py` with ffmpeg installed. The credited original source link is always available.
 
 | UI scene | Real video | Author | Usage |
 |---|---|---|---|
@@ -14,7 +14,7 @@ For the theft recording, retain attribution **“Porch Pirates — nayrproductio
 A missed-delivery window is **not** proof of no delivery merely because a video is blank, offline, or unavailable. The app uses explicitly simulated scan timelines and visual examples only.
 
 ## Release verification
-- Confirm every video link opens and plays on the judge's intended Android browser. An Ogg/Theora file may not play natively on every browser; the source link is the fallback.
+- Confirm every video link opens and plays on the judge's intended Android browser. For the locally playable theft clip, install ffmpeg and run `python scripts/prepare_demo_video.py`; the source link is the fallback if download or transcoding fails.
 - Never imply an external carrier claim was actually filed. “Submit simulated claim” writes locally to SQLite only.
 - Real-footage links may require network access; the core MCP and fictional case/claim workflow is local/offline.
 - Before advertising a **fully offline live-video demo**, license and package compatible MP4/WebM media assets in the repo with credits; external source links alone are not sufficient.
