@@ -27,6 +27,9 @@ class JudgeSimulationTests(unittest.TestCase):
         data=x["structuredContent"]
         self.assertEqual(len(data["packages"]),5)
         self.assertEqual(len(data["gmail_inbox"]),5)
+        self.assertTrue(all("last_scan" in p for p in data["packages"]))
+        self.assertTrue(all(-90 <= p["last_scan"]["latitude"] <= 90 and -180 <= p["last_scan"]["longitude"] <= 180 for p in data["packages"]))
+        self.assertTrue(all(p["last_scan"]["meaning"].startswith("fictional") for p in data["packages"]))
         self.assertEqual(data["connections"]["Gmail"],"SIMULATED")
         self.assertEqual(data["connections"]["Blink"],"SIMULATED")
         self.assertEqual({p["carrier"] for p in data["packages"] if p["issue"]=="received"},{"Amazon"})
@@ -44,4 +47,5 @@ class JudgeSimulationTests(unittest.TestCase):
         self.assertTrue(self.call("judge_demo_claim",case_id="DOES-NOT-EXIST",notes="bad")["isError"])
         self.assertIn('id="judge-load"',self.client.get("/").text)
         self.assertIn('src="/judge.js"',self.client.get("/").text)
+        self.assertIn("www.google.com/maps/search/?api=1",self.client.get("/judge.js").text)
 if __name__=="__main__":unittest.main()
