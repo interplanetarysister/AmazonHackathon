@@ -30,7 +30,8 @@ function choose(id){
    const maps='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(loc.latitude+','+loc.longitude);
    const map=link('View last SIMULATED scan location on Google Maps',maps,root);
    map.setAttribute('aria-label','Open Google Maps for fictional last scan of '+p.id);
-   node('p','Demo coordinates only. Not a real courier GPS position or current package location.',root).className='sub';
+   node('p',loc.real_facility?'Real Amazon facility location (publicly documented); scan assignment and time are fictional. This is NOT actual tracking.':'Fictional demo coordinates only. Not real courier GPS or current package location.',root).className='sub';
+   if(loc.facility_source)link('Verify facility location with Amazon',loc.facility_source,root);
  }
  const cam=$('judge-video');cam.replaceChildren();
  node('p','BLINK CONNECTED — SIMULATION. Matched to '+p.id+'. Actual third-party footage is illustrative and is NOT video of this fictional shipment.',cam);
