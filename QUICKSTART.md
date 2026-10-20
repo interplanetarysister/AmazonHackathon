@@ -2,6 +2,10 @@
 
 **Independent demo; not an Amazon-supported service.** No Alexa device, carrier account, or Ring camera connects to this prototype. Ring events are explicitly **local fixtures**, never presented as real Ring evidence.
 
+## Complete judge dependencies
+
+See [judge installation instructions](docs/judge-installation.md) for required Python packages, Android Termux troubleshooting, and a supported Python fallback. Native Termux Python 3.14 Pydantic compilation is not verified.
+
 ## Start (Python 3.11+)
 
 ```sh
