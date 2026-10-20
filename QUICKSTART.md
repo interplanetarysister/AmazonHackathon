@@ -53,3 +53,17 @@ Signed payloads must have `meta.version=1.1`, `meta.request_id`, `meta.time`, an
 - Seven `unittest` backend checks pass, including real MCP JSON-RPC POST requests, SQLite persistence/idempotency, incorrect delivery claims, failures saved in DoneProof, and signed Ring-format event/invalid signature/replay handling.
 - Chromium browser UI was exercised through a local test bridge against the same FastAPI app: sample save, carrier status, missing report, guidance, failed action, and fresh-page persistence worked without browser JavaScript exceptions.
 - **Not yet validated** with a second implementation of the official MCP SDK, a Ring Playground account, public URL, or actual carriers. Do not label the adapter as a live Ring integration or consumer-ready production service.
+
+## Android Termux judge option (confirmed by project owner on October 20)
+
+For judges viewing and running the project on an Android phone with Termux, the project owner successfully used this alternative to the standard Linux virtual-environment setup:
+
+```sh
+pkg update -y
+pkg install python git -y
+cd ~/AmazonHackathon
+python -m unittest discover -s tests -v
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000** in the Android browser on the same phone. Change `cd ~/AmazonHackathon` if the repository is located elsewhere. This route presumes FastAPI, Uvicorn and their dependencies are already installed (as on the owner's device); if missing, use `python -m pip install -r requirements.txt` and troubleshoot Termux/Pydantic compatibility as needed. `pkg` commands belong in native Termux, not inside a proot Ubuntu shell. Keep the terminal/server open while browsing. The demo has no authentication, so do **not** bind it to a public interface. This is a user-reported successful Termux launch, not an independently verified clean-room install on every Android device.
