@@ -40,6 +40,8 @@ def tracking_lookup(number: str) -> dict:
     try:
         with urlopen(token_req, timeout=12) as res:
             payload = json.load(res)
+        if not isinstance(payload, dict):
+            raise ValueError("UPS OAuth returned malformed data")
         token = payload.get("access_token")
         if not isinstance(token, str) or not token:
             raise ValueError("UPS OAuth did not return an access token")
@@ -52,27 +54,40 @@ def tracking_lookup(number: str) -> dict:
         raise ValueError("UPS tracking request was rejected (HTTP " + str(exc.code) + ")") from None
     except (URLError, TimeoutError, OSError, json.JSONDecodeError):
         raise ValueError("UPS tracking is temporarily unavailable") from None
-    shipments = result.get("trackResponse", {}).get("shipment", [])
-    if not isinstance(shipments, list) or not shipments:
+    if not isinstance(result, dict):
+        raise ValueError("UPS returned malformed tracking data")
+    response = result.get("trackResponse")
+    if not isinstance(response, dict):
+        raise ValueError("UPS returned malformed tracking data")
+    shipments = response.get("shipment")
+    if not isinstance(shipments, list) or not shipments or not isinstance(shipments[0], dict):
         raise ValueError("UPS returned no matching shipments")
-    packages = shipments[0].get("package", [])
-    if not isinstance(packages, list) or not packages:
+    packages = shipments[0].get("package")
+    if not isinstance(packages, list) or not packages or not isinstance(packages[0], dict):
         raise ValueError("UPS returned no package scan details")
     package = packages[0]
-    activity = package.get("activity") or []
-    latest = activity[0] if isinstance(activity, list) and activity else {}
-    description = package.get("currentStatus", {}).get("description") or                   (latest.get("status") or {}).get("description") or "Status unavailable"
+    activity = package.get("activity")
+    latest = activity[0] if isinstance(activity, list) and activity and isinstance(activity[0], dict) else {}
+    current_status = package.get("currentStatus")
+    current_status = current_status if isinstance(current_status, dict) else {}
+    status_info = latest.get("status")
+    status_info = status_info if isinstance(status_info, dict) else {}
+    description = current_status.get("description") or status_info.get("description") or "Status unavailable"
     description = str(description)[:130]
-    status_info = latest.get("status") or {}
-    status_text = (str(description) + " " + str(status_info.get("type", ""))).lower()
-    if "delivered" in status_text:
+    code = str(status_info.get("type") or current_status.get("type") or "").upper()
+    status_text = description.lower()
+    if code == "D":
         state = "marked_delivered"
-    elif "out for delivery" in status_text:
-        state = "out_for_delivery"
-    elif any(x in status_text for x in ("exception", "failed", "return", "damage")):
+    elif code == "X" or any(x in status_text for x in ("exception", "failed", "return", "damage", "undeliver", "not delivered")):
         state = "exception"
-    elif any(x in status_text for x in ("in transit", "on the way", "departed", "arrived", "origin scan")):
+    elif code == "O" or "out for delivery" in status_text:
+        state = "out_for_delivery"
+    elif code in {"I", "P"} or any(x in status_text for x in ("in transit", "on the way", "departed", "arrived", "origin scan")):
         state = "in_transit"
+    elif code == "M":
+        state = "expected"
+    elif "delivered" in status_text:
+        state = "marked_delivered"
     else:
         state = "expected"
     when = None
