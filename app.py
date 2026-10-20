@@ -23,6 +23,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
+from judge_simulation import show as judge_show, claim as judge_claim
 from fastapi.responses import JSONResponse, Response, FileResponse
 from starlette.concurrency import run_in_threadpool
 from ring_adapter import ensure_ring_schema, verify_signature, store_ring_event, list_ring_events
@@ -407,6 +408,10 @@ def execute(name: str, a: dict) -> dict[str, Any]:
             return {"preferences": rows,
                     "note": "Only in-page notification tests are active. No background push or camera-polling service configured."}
 
+        if name == "judge_demo_dashboard":
+            return judge_show(con)
+        if name == "judge_demo_claim":
+            return judge_claim(con, required_str(a,"case_id",30), optional_str(a,"notes",800))
         if name == "seed_demo_logistics":
             return seed_demo_logistics(con, required_str(a,"demo_user",40))
         if name == "list_demo_logistics":
@@ -604,6 +609,8 @@ def execute(name: str, a: dict) -> dict[str, Any]:
 
 
 TOOL_INPUTS = {
+    "judge_demo_dashboard": ({}, []),
+    "judge_demo_claim": ({"case_id":"string","notes":"string"}, ["case_id"]),
     "seed_demo_logistics": ({"demo_user":"string"},["demo_user"]),
     "list_demo_logistics": ({"demo_user":"string"},["demo_user"]),
     "get_demo_logistics": ({"demo_user":"string","tracking_id":"string"},["demo_user","tracking_id"]),
