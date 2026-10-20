@@ -7,6 +7,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -130,6 +131,27 @@ class Version2Tests(unittest.TestCase):
         self.assertEqual(summary["first_action"]["status"], "ups_sandbox_test_only")
         self.assertEqual(self.call("get_delivery", delivery_id=did)["delivery"]["carrier_status"], "expected")
         self.assertIsNotNone(summary["first_action"]["checked_at"])
+
+    def test_concurrent_identical_requests_create_one_action(self):
+        payload = {"jsonrpc": "2.0", "method": "tools/call",
+                   "params": {"name": "import_delivery_notice", "arguments": {
+                       "label": "Concurrent fixture", "carrier": "UPS", "eta": "Soon",
+                       "idempotency_key": "same-key-two-threads"}}}
+        def send(index):
+            with TestClient(self.api.app) as client:
+                body = dict(payload, id=index)
+                return client.post("/mcp", json=body, headers={
+                    "Accept": "application/json, text/event-stream",
+                    "MCP-Protocol-Version": "2025-11-25"})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            responses = list(pool.map(send, (1, 2)))
+        for response in responses:
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertFalse(response.json()["result"]["isError"])
+        results = [x.json()["result"]["structuredContent"] for x in responses]
+        self.assertEqual(results[0]["action_id"], results[1]["action_id"])
+        self.assertEqual(len(self.call("list_deliveries")["deliveries"]), 1)
+        self.assertEqual(len(self.call("list_actions")["actions"]), 1)
 
     def test_original_record_migrates_for_direction(self):
         database = os.environ["DG_DB_PATH"]
