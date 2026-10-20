@@ -37,7 +37,7 @@
     if (contact.phone && /^\d{10,15}$/.test(contact.phone)) {
       const a = document.createElement('a');
       a.href = 'tel:+' + contact.phone;
-      a.textContent = 'Call ' + result.current_claim?.replaceAll('_',' ') + ' carrier: ' + contact.display_phone;
+      a.textContent = 'Call carrier support: ' + contact.display_phone;
       a.style.display = 'block';
       area.append(a);
     }
@@ -245,7 +245,8 @@
     if (permission!=='granted') { message('Phone notification permission was not granted.');return false; }
     try {
       if ('serviceWorker' in navigator) {
-        const worker = await navigator.serviceWorker.register('/notify-sw.js');
+        await navigator.serviceWorker.register('/notify-sw.js');
+        const worker = await navigator.serviceWorker.ready;
         await worker.showNotification(title,{body,tag:'delivery-guardian-test'});
       } else {
         new Notification(title,{body});
