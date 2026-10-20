@@ -57,3 +57,21 @@ Official contest: https://amazonappdev2026.devpost.com/
 - [Reviewed first-run prompt for Kiro](.kiro/prompts/delivery-guardian-first-run.md) — a **bounded execution milestone**, not an unconditional request to build the entire product.
 
 **Owner preflight:** Sync the project safely, inspect `/usage` and `/model` in Kiro CLI, ensure the selected model is available on the Free plan and that sufficient credit headroom remains to preserve the final credit. A single complex request can cost multiple credits, so a hard credit cap is not guaranteed. In Kiro V3, use `/prompts list` and choose the saved prompt or paste its contents; in V2, paste the prompt if local prompt invocation is unavailable. Do not run both versions of the same instruction. The first batch ends with tested code, a 10%-increment progress report when earned, and a sample for user feedback. Do not run unattended agent jobs or paid cloud tasks.
+
+
+## Five-package simulated logistics demo (October 20 update)
+
+The local MCP app now has three new simulated-logistics actions plus a scoped detail lookup:
+
+- `seed_demo_logistics({demo_user})` creates exactly five labeled fictional scenarios for an unused demo namespace. Repeating the action preserves existing records.
+- `list_demo_logistics({demo_user})` retrieves that namespace's five demo rows.
+- `get_demo_logistics({demo_user,tracking_id})` looks up a specific demo package.
+- `update_demo_logistics({demo_user,tracking_id,scan_status,details})` writes to SQLite and reads it back.
+
+Demo package IDs: `SIM-1001` missing after claimed delivery; `SIM-1002` hub delay; `SIM-1003` wrong truck; `SIM-1004` future video request; `SIM-1005` receipt confirmed. The browser's **Load five samples** action seeds a chosen demo namespace; it can then inspect or update each simulated logistics record. All values are fabricated; no Amazon logistics data, actual scanner, package video, or carrier APIs are queried.
+
+**Security boundary:** A demo namespace is not a user account. The existing general delivery and action tools still share one local database; there is no access control or production user isolation. Bind only to localhost with test data. The simulated logistics writes do not claim a real-world package was located.
+
+**Validation status:** Source files and changes committed and read back on GitHub. Automated tests for fixtures were added but have not been executed in this session. Run `python -m unittest discover -s tests -v` and complete the interactive judge walkthrough before saying all tests pass.
+
+[Draft Devpost fields and outstanding checklist](docs/devpost-submission-draft.md).
