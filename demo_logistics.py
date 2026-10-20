@@ -59,6 +59,17 @@ def list_cases(con, demo_user):
       JOIN deliveries d ON d.id=p.delivery_id WHERE l.demo_user=? ORDER BY l.tracking_id""",(user,)).fetchall()
     return {"demo_user":user,"cases":[dict(r) for r in rows],"source":"synthetic_not_amazon"}
 
+def get_case(con,demo_user,tracking_id):
+    user=validate_user(demo_user)
+    ensure_schema(con)
+    row=con.execute("""SELECT l.*,p.delivery_id,d.label,d.carrier_status,d.receipt_status
+      FROM demo_logistics l JOIN demo_packages p ON p.demo_user=l.demo_user AND p.tracking_id=l.tracking_id
+      JOIN deliveries d ON d.id=p.delivery_id WHERE l.demo_user=? AND l.tracking_id=?""",
+      (user,tracking_id)).fetchone()
+    if row is None:
+        raise ValueError("Demo package not found for this user")
+    return {"case":dict(row),"source":"synthetic_not_amazon"}
+
 def update_case(con,demo_user,tracking_id,scan_status,details):
     user=validate_user(demo_user)
     if scan_status not in {"scanned","exception","located","reconciled"}:
