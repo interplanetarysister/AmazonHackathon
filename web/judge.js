@@ -28,7 +28,7 @@ function choose(id){
  node('p','Blink-style camera timeline (SIMULATION). Real third-party footage below is only an illustration, unrelated to these package records.',cam);
  const names=p.issue==='received'?['delivery','received']:p.issue==='possible_theft'?['delivery','theft']:p.issue==='missing_at_dropoff'?['delivery']:['delivery'];
  for(const name of names){const v=data.camera_clips[name];node('p',name.replaceAll('_',' ')+' — '+v.credit+' — '+v.license,cam);link('Watch actual licensed '+name+' footage',v.url,cam);
- if(name==='theft'){const vid=document.createElement('video');vid.controls=true;vid.preload='none';vid.style.width='100%';vid.style.maxHeight='240px';vid.src='https://commons.wikimedia.org/wiki/Special:Redirect/file/Porch_Pirates.ogv';cam.appendChild(vid);node('p','If this browser does not support Ogg/Theora, use the original video link above.',cam);}
+ if(name==='theft'){const vid=document.createElement('video');vid.controls=true;vid.preload='none';vid.style.width='100%';vid.style.maxHeight='240px';vid.src='/demo-media/porch-pirates-cc-by-3.0.mp4';cam.appendChild(vid);node('p','To enable this playable MP4, run python scripts/prepare_demo_video.py with ffmpeg installed. Otherwise use the credited source link above.',cam);}
  }
  $('judge-claim-result').textContent=p.claim_status==='demo_claim_submitted'?'Previous demo claim saved: '+p.claim_notes:'';
 }
