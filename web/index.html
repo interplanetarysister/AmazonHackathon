@@ -106,7 +106,8 @@ async function logisticsRead(){
   p.textContent=c.tracking_id+' — '+c.label+' — '+c.case_type+' — '+c.scan_status+' — '+c.details;
   const b=document.createElement('button');b.textContent='Mark located';
   b.onclick=async()=>{await tool('update_demo_logistics',{demo_user:$('demo-user').value,tracking_id:c.tracking_id,scan_status:'located',details:'Located in simulated internal logistics'});await logisticsRead()};
-  root.append(p,b);
+  const view=document.createElement('button');view.type='button';view.className='secondary';view.textContent='Inspect simulated scan';view.onclick=async()=>{try{const r=await tool('get_demo_logistics',{demo_user:$('demo-user').value,tracking_id:c.tracking_id});const item=r.case;const d=document.createElement('p');d.className='sub';d.textContent='Last update: '+item.last_updated+' | Facility: '+item.facility+' | Assigned truck: '+item.truck+' | Evidence: '+item.evidence_source; p.after(d)}catch(e){showError(e)}};
+  root.append(p,view,b);
  }
 }
 $('seed-five').onclick=async()=>{try{await tool('seed_demo_logistics',{demo_user:$('demo-user').value});await logisticsRead();await refresh()}catch(e){showError(e)}};
