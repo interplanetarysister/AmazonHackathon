@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, FileResponse
+from starlette.concurrency import run_in_threadpool
 from ring_adapter import ensure_ring_schema, verify_signature, store_ring_event, list_ring_events
 from ups_adapter import configured as ups_configured, tracking_lookup
 
@@ -538,9 +539,10 @@ def execute(name: str, a: dict) -> dict[str, Any]:
             did = required_str(a, "delivery_id", 80)
             d = delivery(con, did)
             last_ups_scan = con.execute(
-                "SELECT recorded_at, claimed_at, details FROM delivery_timeline "
+                "SELECT recorded_at, claimed_at, details, source_type FROM delivery_timeline "
                 "WHERE delivery_id=? AND event_type='ups_tracking_scan' "
                 "ORDER BY recorded_at DESC LIMIT 1", (did,)).fetchone()
+            live_scan = bool(last_ups_scan) and last_ups_scan["source_type"] == "official_ups_tracking_api_production"
             return {"delivery_id": did, "steps": ["Check the delivery location and ask others at the address.",
                 "Review the retailer's actual order details and delivery notice.",
                 "Contact the seller or carrier through their official support channel.",
@@ -551,11 +553,11 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                 "carrier_contact": carrier_contact(d["carrier"]),
                 "first_action": {
                     "name": "Check for a newer carrier scan, corrected delivery time or delivery photo",
-                    "status": "ups_api_checked" if last_ups_scan else "needs_authorized_provider_or_user_check",
-                    "done": bool(last_ups_scan),
+                    "status": "ups_api_checked" if live_scan else ("ups_sandbox_test_only" if last_ups_scan else "needs_authorized_provider_or_user_check"),
+                    "done": live_scan,
                     "checked_at": last_ups_scan["recorded_at"] if last_ups_scan else None,
                     "explanation": (
-                        "Last UPS API response saved on " + last_ups_scan["recorded_at"]
+                        ("Last verified production UPS API response saved on " if live_scan else "UPS sandbox test response (not live tracking) saved on ") + last_ups_scan["recorded_at"]
                         + ". Carrier description: " + last_ups_scan["details"]
                         + ". Recheck now for any newer updates; provider scans can change."
                         if last_ups_scan else
@@ -698,7 +700,7 @@ async def mcp(request: Request):
         if set(arguments) - allowed:
             return JSONResponse(jsonrpc_error(ident, -32602, "Unexpected argument(s)"))
         try:
-            output = execute(name, arguments)
+            output = await run_in_threadpool(execute, name, arguments)
             result = {"content": [{"type": "text", "text": json.dumps(output)}], "structuredContent": output, "isError": False}
         except (ValueError, sqlite3.IntegrityError) as exc:
             error = str(exc)
