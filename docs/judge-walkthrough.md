@@ -38,7 +38,7 @@ Actual outcomes and timing must be captured in a real recording, not edited in a
 4. Tap the resolution link; it must point at an official carrier page. Check that it **does not** pre-submit a claim.
 5. Save evidence; confirm line breaks and local timestamps read properly.
 6. Refresh; verify records and proof persist. Test both success and intentionally failed mutations.
-7. Run `python scripts/verify_client.py` to validate the inline JavaScript syntax if Node is installed (otherwise it prints an explicit skip).
+7. Run `python scripts/verify_client.py` to validate inline and external JavaScript syntax. This requires Node.js; without it, the script exits with code 2 (`NOT VERIFIED`), not a passing skip.
 8. Test both mobile and wide-screen layout, text resizing, button focus, and readable contrast.
 
 ### Important submission truth boundaries
