@@ -7,6 +7,13 @@ CASES=[
 ("SIM-1004","Office supplies","UPS","out_for_delivery","late","17:00","recorded_missed_delivery_timeslot","18:00","no_delivery"),
 ("SIM-1005","Groceries","Amazon","marked_delivered","received","11:55","recorded_delivery","12:00","received"),
 ]
+SCAN_LOCATIONS={
+"SIM-1001":{"label":"Sample UPS neighborhood delivery station","latitude":47.5966,"longitude":-122.3325,"time":"14:08","meaning":"fictional last courier status scan"},
+"SIM-1002":{"label":"Sample FedEx depot","latitude":47.4456,"longitude":-122.2958,"time":"16:20","meaning":"fictional marked-delivered scan; location does not prove doorstep delivery"},
+"SIM-1003":{"label":"Sample USPS sorting facility","latitude":47.4750,"longitude":-122.2040,"time":"09:20","meaning":"fictional wrong-hub scan"},
+"SIM-1004":{"label":"Sample UPS service center","latitude":47.6137,"longitude":-122.3205,"time":"17:00","meaning":"fictional out-for-delivery scan"},
+"SIM-1005":{"label":"Sample Amazon delivery station","latitude":47.6740,"longitude":-122.1215,"time":"11:55","meaning":"fictional last scan; recipient independently confirmed arrival"},
+}
 SUPPORT={"UPS":"https://www.ups.com/us/en/support/file-a-claim","FedEx":"https://www.fedex.com/en-us/customer-support/claims.html","USPS":"https://www.usps.com/help/claims.htm","Amazon":"https://www.amazon.com/gp/css/order-history"}
 FOOTAGE={
 "delivery":{"url":"https://www.pexels.com/video/a-person-leaving-a-parcel-at-the-door-6667230/","credit":"Kampus Production / Pexels","license":"Pexels free license"},
@@ -27,7 +34,7 @@ def show(con):
                      "events":[{"time":t1,"type":e1},{"time":t2,"type":e2}],
                      "claim_status":saved[ident]["status"] if ident in saved else "not_filed",
                      "claim_notes":saved[ident]["notes"] if ident in saved else "",
-                     "support_url":SUPPORT[carrier],"demo_only":True})
+                     "support_url":SUPPORT[carrier],"last_scan":SCAN_LOCATIONS[ident],"demo_only":True})
         inbox.append({"id":"MAIL-"+ident,"from":"simulation@"+carrier.lower()+".example.invalid",
                       "subject":carrier+" shipment notification: "+item,
                       "body":carrier+" reports status "+status.replace("_"," ")+".",
