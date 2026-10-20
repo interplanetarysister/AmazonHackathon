@@ -2,6 +2,10 @@
 
 **Independent demo; not an Amazon-supported service.** No Alexa device, carrier account, or Ring camera connects to this prototype. Ring events are explicitly **local fixtures**, never presented as real Ring evidence.
 
+## Dependency installation
+
+Use Python 3.11–3.13 where available. Run `python -m pip install -r requirements.txt` to install FastAPI, Uvicorn, HTTPX, Starlette, Pydantic and their automatically resolved dependencies, including pydantic-core. Run `python -m pip check` before tests. Native Termux Python 3.14 may fail to build pydantic-core; use a supported Linux Python environment rather than installing individual packages with `--no-deps`.
+
 ## Start (Python 3.11+)
 
 ```sh
