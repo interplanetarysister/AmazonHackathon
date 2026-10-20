@@ -655,6 +655,14 @@ def home():
     return FileResponse(Path(__file__).parent / "web" / "index.html", media_type="text/html")
 
 
+@app.get("/demo-media/porch-pirates-cc-by-3.0.mp4")
+def licensed_demo_video():
+    path = Path(__file__).parent / "web" / "demo-media" / "porch-pirates-cc-by-3.0.mp4"
+    if not path.is_file():
+        return JSONResponse({"error":"Optional licensed video not prepared; use the credited original source link."}, status_code=404)
+    return FileResponse(path, media_type="video/mp4", headers={"Cache-Control":"no-store"})
+
+
 @app.get("/judge.js")
 def judge_client():
     return FileResponse(Path(__file__).parent / "web" / "judge.js", media_type="application/javascript", headers={"Cache-Control":"no-store"})
