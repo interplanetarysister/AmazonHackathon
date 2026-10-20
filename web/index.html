@@ -17,7 +17,7 @@ footer{text-align:center;margin:8px 0 22px;font-size:.8rem;color:#50607a}
 @media(max-width:750px){.grid{grid-template-columns:1fr}header{padding:20px}header h1{font-size:1.5rem}.panel{padding:16px}}
 </style></head><body>
 <header><h1>Delivery Guardian <span aria-hidden="true">✦</span></h1><p>Know what's coming. Know what actually arrived. Know what to do next.</p></header>
-<main><div class="notice"><strong>Live local software demonstration.</strong> This uses a real MCP server and database. Delivery details and doorstep events are manually entered or labeled sample data. No live carrier, Alexa device, or Ring account is connected. <span id="conn" role="status">Connecting…</span></div>
+<main><section class="panel"><h2>Logistics demo — five packages</h2><p>All logistics records are fictional and not connected to Amazon. Demo names are not authenticated user accounts.</p><label for="demo-user">Demo name</label><input id="demo-user" value="judge-demo"><div class="buttons"><button type="button" id="seed-five">Load five samples</button><button type="button" id="read-five">Refresh logistics data</button></div><div id="five-results"></div></section><div class="notice"><strong>Live local software demonstration.</strong> This uses a real MCP server and database. Delivery details and doorstep events are manually entered or labeled sample data. No live carrier, Alexa device, or Ring account is connected. <span id="conn" role="status">Connecting…</span></div>
 <section class="grid"><div class="panel"><h2>Add a delivery</h2><label for="notice">Paste a shipping notice (optional)</label><textarea id="notice" rows="4" maxlength="3000" placeholder="Item: Sample groceries&#10;Carrier: Example Carrier&#10;ETA: Friday afternoon"></textarea><div class="buttons"><button type="button" class="secondary" id="extract">Extract details for review</button></div><p id="extract-note" class="sub">Only explicitly labeled fields are extracted. Nothing is saved until you review and confirm.</p><form id="add"><label for="label">Package name</label><input id="label" required maxlength="120" placeholder="Example: Grocery box"><label for="carrier">Carrier</label><input id="carrier" required maxlength="40" placeholder="Example: UPS"><label for="eta">Expected arrival</label><input id="eta" required maxlength="60" placeholder="Example: Saturday afternoon"><div class="buttons"><button type="submit">Save & verify</button><button type="button" class="secondary" id="demo">Load example</button></div></form><hr><h2>Deliveries</h2><div id="deliveries" class="deliveries" aria-live="polite">Loading…</div></div>
 <div class="panel"><h2>Delivery follow-through</h2><div id="selected">Choose or create a delivery.</div><div id="controls" hidden><label for="correction">Correct expected arrival</label><input id="correction" maxlength="60"><button id="save-correction" class="secondary">Save correction & verify</button><div class="buttons"><button id="carrier-done" class="secondary">Carrier says delivered</button><button id="received" class="secondary">I received it</button><button id="missing" class="alert">I can't find it</button><button id="doorstep" class="secondary">Add sample doorstep event</button></div><div class="buttons"><button id="guidance">What should I do?</button><button id="refresh" class="secondary">Check for issues</button></div></div><div id="advice" aria-live="polite"></div></div></section>
 <section class="grid"><div class="panel"><h2>DoneProof · Verified actions</h2><p class="sub">Each change gets an action ID and is read back from the actual database. This verifies our software's record, not the real-world delivery.</p><div id="proof" aria-live="polite" class="notice">No actions yet.</div><div class="buttons"><button id="fail-test" class="secondary">Test a failing action</button></div></div>
@@ -97,6 +97,21 @@ async function loadRing(){try{const r=await tool('list_ring_events');$('ring-eve
   for(const e of r.events){const wrap=document.createElement('div');wrap.className='notice';const detail=document.createElement('p');detail.textContent=e.event_type+' ('+e.subtype+') · '+e.observed_at+' · '+(e.linked_delivery_id?'Linked to delivery':'Unlinked · signed format, source unconfirmed');wrap.append(detail);
     if(!e.linked_delivery_id){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Link to selected delivery';b.onclick=async()=>{if(!activeId){$('ring-events').prepend(document.createTextNode('Select a delivery first. '));return}await action('attach_ring_event',{delivery_id:activeId,event_id:e.id});await loadRing()};wrap.append(b)}$('ring-events').append(wrap)}}catch(e){showError(e)}}
 $('ring-refresh').onclick=loadRing;
+
+async function logisticsRead(){
+ const data=await tool('list_demo_logistics',{demo_user:$('demo-user').value});
+ const root=$('five-results');root.replaceChildren();
+ for(const c of data.cases){
+  const p=document.createElement('p');
+  p.textContent=c.tracking_id+' — '+c.label+' — '+c.case_type+' — '+c.scan_status+' — '+c.details;
+  const b=document.createElement('button');b.textContent='Mark located';
+  b.onclick=async()=>{await tool('update_demo_logistics',{demo_user:$('demo-user').value,tracking_id:c.tracking_id,scan_status:'located',details:'Located in simulated internal logistics'});await logisticsRead()};
+  root.append(p,b);
+ }
+}
+$('seed-five').onclick=async()=>{try{await tool('seed_demo_logistics',{demo_user:$('demo-user').value});await logisticsRead();await refresh()}catch(e){showError(e)}};
+$('read-five').onclick=async()=>{try{await logisticsRead()}catch(e){showError(e)}};
+
 (async()=>{try{const init=await rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'delivery-guardian-browser',version:'0.1.0'}});if(init.protocolVersion!=='2025-11-25')throw Error('Wrong version');
  const tools=await rpc('tools/list');log('✓ '+tools.tools.length+' real tools discovered');$('conn').className='success';$('conn').textContent='Connected to local MCP server';await refresh();await loadActions();await loadRing()}catch(e){showError(e)}})();
 </script></body></html>
