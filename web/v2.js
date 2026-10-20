@@ -195,8 +195,8 @@
     try{
       const info=await tool('get_connection_capabilities');
       const ups=info.providers.find(p=>p.name==='UPS tracking');
-      if(ups?.state!=='ready_with_developer_credentials'){
-        E('ups-status').textContent='UPS developer access not configured. The official tracking link is available in the report.';
+      if(ups?.state!=='ready_with_developer_credentials' || ups?.environment!=='production'){
+        E('ups-status').textContent='Automatic UPS recheck requires authorized production credentials. Sandbox is test-only; use the official tracking link.';
         return;
       }
       const before=d.carrier_status;
