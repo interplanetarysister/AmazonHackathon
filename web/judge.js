@@ -24,6 +24,14 @@ function choose(id){
  for(const e of p.events)node('p',e.time+' — '+e.type.replaceAll('_',' ')+' (simulated timestamp)',root);
  node('p','Claim status: '+p.claim_status.replaceAll('_',' '),root);
  link('Open official '+p.carrier+' support/claim page (no submission)',p.support_url,root);
+ if(p.last_scan){
+   const loc=p.last_scan;
+   node('p','Last simulated carrier scan: '+loc.label+' • '+loc.time+' • '+loc.meaning,root);
+   const maps='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(loc.latitude+','+loc.longitude);
+   const map=link('View last SIMULATED scan location on Google Maps',maps,root);
+   map.setAttribute('aria-label','Open Google Maps for fictional last scan of '+p.id);
+   node('p','Demo coordinates only. Not a real courier GPS position or current package location.',root).className='sub';
+ }
  const cam=$('judge-video');cam.replaceChildren();
  node('p','BLINK CONNECTED — SIMULATION. Matched to '+p.id+'. Actual third-party footage is illustrative and is NOT video of this fictional shipment.',cam);
  const scenes={
