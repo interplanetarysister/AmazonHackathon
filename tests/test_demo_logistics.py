@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
-from demo_logistics import ensure_schema, seed, list_cases, update_case
+from demo_logistics import ensure_schema, seed, list_cases, update_case, get_case
 
 class LogisticsFixtureTests(unittest.TestCase):
     def setUp(self):
@@ -28,6 +28,14 @@ class LogisticsFixtureTests(unittest.TestCase):
         b={x["tracking_id"]:x for x in list_cases(self.con,"bob")["cases"]}
         self.assertEqual(a["SIM-1003"]["scan_status"],"located")
         self.assertEqual(b["SIM-1003"]["scan_status"],"exception")
+    def test_scoped_detail_and_missing_cross_user_record(self):
+        seed(self.con,"alice")
+        one=get_case(self.con,"alice","SIM-1003")["case"]
+        self.assertEqual(one["case_type"],"wrong_truck")
+        self.assertEqual(one["source"] if "source" in one else one["evidence_source"],"synthetic_not_amazon")
+        with self.assertRaises(ValueError):
+            get_case(self.con,"bob","SIM-1003")
+
     def test_invalid_namespace_and_status(self):
         with self.assertRaises(ValueError): seed(self.con,"../bad")
         seed(self.con,"alice")
