@@ -181,15 +181,17 @@ def mutation(con, name: str, a: dict, work):
     key = required_str(a, "idempotency_key", 100)
     digest = hashlib.sha256(json.dumps({k: v for k, v in a.items() if k != "idempotency_key"},
                                     sort_keys=True).encode()).hexdigest()
+    con.execute("BEGIN IMMEDIATE")  # serialize key lookup and write side effects
     prior = con.execute("SELECT * FROM actions WHERE idempotency_key=?", (key,)).fetchone()
     if prior:
+        con.rollback()
         if prior["tool"] != name or json.loads(prior["evidence"]).get("request_digest") != digest:
             raise ValueError("Idempotency key already used for a different request")
         return {"action_id": prior["id"], "status": prior["status"], "replayed": True,
                 "evidence": json.loads(prior["evidence"])}
     aid = str(uuid.uuid4())
     did, details, check = work()
-    con.commit()  # The record must be durably saved before DoneProof checks it.
+    # Keep mutation and idempotency key in one atomic transaction.
     confirmed = bool(check())
     status = "verified" if confirmed else "needs_review"
     proof = {"scope": "local database state", "read_after_write": confirmed,
@@ -197,6 +199,7 @@ def mutation(con, name: str, a: dict, work):
              "note": "This verifies stored app data, not physical delivery."}
     con.execute("INSERT INTO actions VALUES (?,?,?,?,?,?,?,?)",
                 (aid, key, name, status, did, json.dumps(proof), utc(), utc() if confirmed else None))
+    con.commit()
     return {"action_id": aid, "delivery_id": did, "status": status, "evidence": proof, "replayed": False}
 
 
@@ -369,12 +372,15 @@ def execute(name: str, a: dict) -> dict[str, Any]:
                     raise ValueError("Select a UPS delivery for UPS tracking")
                 check = tracking_lookup(number)  # official provider response only
                 status = check["carrier_status"]
-                con.execute("UPDATE deliveries SET carrier_status=?, updated_at=? WHERE id=?",
-                            (status, utc(), did))
-                timeline_record(con, did, "ups_tracking_scan", check["source"],
-                                check["status_description"], check.get("carrier_event_at"))
-                return did, "UPS official " + check["environment"] + " response; provider claim only", \
-                    lambda: delivery(con, did)["carrier_status"] == status
+                live = check["environment"] == "production"
+                if live:
+                    con.execute("UPDATE deliveries SET carrier_status=?, updated_at=? WHERE id=?",
+                                (status, utc(), did))
+                eid = timeline_record(con, did, "ups_tracking_scan", check["source"],
+                                      check["status_description"], check.get("carrier_event_at"))
+                return did, ("UPS production provider claim" if live else "UPS sandbox test only; carrier status unchanged"), \
+                    lambda: (delivery(con, did)["carrier_status"] == status if live else
+                             con.execute("SELECT id FROM delivery_timeline WHERE id=?", (eid,)).fetchone() is not None)
             return mutation(con, name, a, work)
 
         if name == "set_notification_preference":
