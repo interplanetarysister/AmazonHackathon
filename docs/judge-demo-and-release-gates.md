@@ -61,3 +61,17 @@ Use [Devpost entry draft](devpost-submission-draft.md), adapting its tense to wh
 4. Verify links from a signed-out viewer; fill Devpost fields.
 5. Submit **before** October 23 noon PDT. Freeze repo/video/entry after the official deadline.
 6. **No Kiro credit spent, no paid hosting, no fabricated Ring/Alexa/Vega integration.**
+
+## Android Termux judge option (confirmed by project owner on October 20)
+
+For judges viewing and running the project on an Android phone with Termux, the project owner successfully used this alternative to the standard Linux virtual-environment setup:
+
+```sh
+pkg update -y
+pkg install python git -y
+cd ~/AmazonHackathon
+python -m unittest discover -s tests -v
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000** in the Android browser on the same phone. Change `cd ~/AmazonHackathon` if the repository is located elsewhere. This route presumes FastAPI, Uvicorn and their dependencies are already installed (as on the owner's device); if missing, use `python -m pip install -r requirements.txt` and troubleshoot Termux/Pydantic compatibility as needed. `pkg` commands belong in native Termux, not inside a proot Ubuntu shell. Keep the terminal/server open while browsing. The demo has no authentication, so do **not** bind it to a public interface. This is a user-reported successful Termux launch, not an independently verified clean-room install on every Android device.
