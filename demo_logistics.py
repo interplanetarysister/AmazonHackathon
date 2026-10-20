@@ -40,9 +40,9 @@ def seed(con, demo_user):
     now=datetime.now(timezone.utc).isoformat()
     for i,(tracking,label,carrier,status,receipt,case,details) in enumerate(SCENARIOS):
         did=str(uuid4())
-        con.execute("""INSERT INTO deliveries VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        con.execute("""INSERT INTO deliveries (id,label,carrier,eta,tracking_hint,carrier_status,receipt_status,doorstep_status,source,created_at,updated_at,direction) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
           (did,label,carrier,"Demo day "+str(i+1),tracking,status,receipt,
-           "demo_event_observed" if i==0 else "unknown","synthetic_demo_fixture",now,now))
+           "demo_event_observed" if i==0 else "unknown","synthetic_demo_fixture",now,now,"incoming"))
         con.execute("INSERT INTO demo_packages VALUES (?,?,?)",(user,tracking,did))
         con.execute("""INSERT INTO demo_logistics VALUES (?,?,?,?,?,?,?,?,?,?)""",
           (user,tracking,case,"SIM-HUB-A","SIM-TRUCK-15" if i==2 else "SIM-TRUCK-12",
