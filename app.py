@@ -655,6 +655,11 @@ def home():
     return FileResponse(Path(__file__).parent / "web" / "index.html", media_type="text/html")
 
 
+@app.get("/judge.js")
+def judge_client():
+    return FileResponse(Path(__file__).parent / "web" / "judge.js", media_type="application/javascript", headers={"Cache-Control":"no-store"})
+
+
 @app.get("/v2.js")
 def v2_client():
     return FileResponse(Path(__file__).parent / "web" / "v2.js",
