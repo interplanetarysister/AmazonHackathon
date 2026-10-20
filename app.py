@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, FileResponse
 from ring_adapter import ensure_ring_schema, verify_signature, store_ring_event, list_ring_events
-from demo_logistics import seed as seed_demo_logistics, list_cases as list_demo_logistics, update_case as update_demo_logistics
+from demo_logistics import seed as seed_demo_logistics, list_cases as list_demo_logistics, update_case as update_demo_logistics, get_case as get_demo_logistics
 
 VERSION = "2025-11-25"
 DATABASE = os.environ.get("DG_DB_PATH", str(Path(__file__).parent / "delivery-guardian.sqlite3"))
@@ -158,6 +158,8 @@ def execute(name: str, a: dict) -> dict[str, Any]:
             return seed_demo_logistics(con, required_str(a,"demo_user",40))
         if name == "list_demo_logistics":
             return list_demo_logistics(con, required_str(a,"demo_user",40))
+        if name == "get_demo_logistics":
+            return get_demo_logistics(con, required_str(a,"demo_user",40),required_str(a,"tracking_id",40))
         if name == "update_demo_logistics":
             return update_demo_logistics(con, required_str(a,"demo_user",40),
                 required_str(a,"tracking_id",40),required_str(a,"scan_status",40),
@@ -279,6 +281,7 @@ def execute(name: str, a: dict) -> dict[str, Any]:
 TOOL_INPUTS = {
     "seed_demo_logistics": ({"demo_user":"string"},["demo_user"]),
     "list_demo_logistics": ({"demo_user":"string"},["demo_user"]),
+    "get_demo_logistics": ({"demo_user":"string","tracking_id":"string"},["demo_user","tracking_id"]),
     "update_demo_logistics": ({"demo_user":"string","tracking_id":"string","scan_status":"string","details":"string"},["demo_user","tracking_id","scan_status","details"]),
     "parse_delivery_notice": ({"text": "string"}, ["text"]),
     "correct_delivery_eta": ({"delivery_id": "string", "eta": "string", "idempotency_key": "string"}, ["delivery_id", "eta", "idempotency_key"]),
