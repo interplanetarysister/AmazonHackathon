@@ -30,6 +30,12 @@ log "Running the official interactive Agent Toolkit installer."
 aws configure agent-toolkit --yes --region us-east-1 --profile "$PROFILE"
 log "Checking remote AWS skills catalog."
 aws agent-toolkit list-available-skills --region us-east-1 --profile "$PROFILE"
-log "AWS login and Agent Toolkit CLI verified."
+log "Repairing AWS MCP named-profile configuration (existing JSON files only)."
+if command -v python3 >/dev/null; then
+  python3 scripts/patch-aws-mcp-profile.py --profile "$PROFILE" || log "MCP auto-repair not verified; inspect generated configuration manually."
+else
+  log "python3 absent: use an available Python runtime or edit the MCP configuration manually."
+fi
+log "AWS login and Agent Toolkit CLI verified; MCP client connection still needs an interactive test."
 printf '\nNEXT: In every generated AI-tool MCP configuration, set aws-mcp.env.AWS_MCP_PROXY_PROFILES to %s, retaining all other generated fields. Restart the AI tool.\n' "$PROFILE"
 printf 'Do not commit AWS credential files or MCP configurations containing secrets.\n'
