@@ -1,81 +1,39 @@
-# Delivery Guardian — Amazon Build, Ship, Shape Hackathon
+# Delivery Guardian — Amazon Developer Hackathon
 
-**Status:** Local working MVP milestone 1 committed and backend-tested; live Ring Playground/API integration, independent official MCP SDK interoperability, public production readiness, and Devpost submission are **not yet complete**.
+Delivery Guardian helps people investigate uncertain deliveries by comparing package events, independently labeled evidence, and reported issues. It provides guided support steps and an interactive demonstration using fictional records.
 
-**Working name:** Delivery Guardian  
-**Selected ideas:** #11 Delivery Guardian + #1 DoneProof + #5 Ring Resolution  
-**Primary hackathon track:** Alexa+ (real MCP 2025-11-25+ Streamable HTTP server with a working web MCP client)  
-**Additional integration target:** Ring developer Playground/API when honestly testable, otherwise labeled sample evidence.  
-**Deadline:** **Friday, October 23, 2026 at 12:00 p.m. PDT**.
+## Run the demonstration
 
-> **Know what's coming. Know what actually arrived. Know what to do next.**
-
-Delivery Guardian is a privacy-conscious delivery follow-through application. It aims to combine shipping notices, independently verified software actions, optional Ring doorstep evidence and human package-receipt confirmation. When a delivery is unclear or missing, it prepares transparent customer-service next steps rather than claiming it automatically filed a complaint. Built for zero-cost development and a reproducible working demo, not a static mockup.
-
-## Ring Guardian Base44 app and GitHub build instructions
-
-**Important: these are separate implementations.** This repository builds a local Python Delivery Guardian / Package P.I. MCP prototype, **not** the newer Base44 Ring Guardian Cam — Unrewound React/Vite app. For exact commands, public URLs, recording path, and submission verification, see **[Ring Guardian build and demo guide](docs/ring-guardian-build-and-demo.md)**. The Base44 source must be exported/synchronized separately to claim that it is reproducible from this repository. Do not run npm commands at this repository root.
-
-## Start here
-
-- [Approved product scope, architecture, acceptance tests and dates](docs/product-scope.md) — **authoritative requirements for the product**.
-- [Project-wide agent and development guardrails](AGENTS.md) — applies to contributors, Kiro, Codex and all production/deployment work.
-- [Hackathon rules, eligibility, track integrations and submission checklist](docs/hackathon-requirements.md).
-- [Customer feedback, unresolved problems and feature research](docs/customer-voice-opportunity-research.md).
-- [Kiro steering file](.kiro/steering/hackathon-winning-scope.md).
-
-## Non-negotiables
-
-- No paid plans, services, hardware, or surprise spending. Preserve the final Kiro credit plus safety margin.
-- Real, testable, source-cited functionality. Do not call an AI action done without verification.
-- Separate carrier reports, Ring device/sandbox/local simulated activity and human-confirmed receipt.
-- Distinguish working integrations from proposed ones in screenshots, demo and documentation.
-- Scope freeze: prioritize complete Alexa+ MCP implementation first; Ring is a gated supplementary feature.
-- An authentic under-three-minute demo, clean-room judge setup, developer product feedback, and a timely Devpost submission are mandatory.
-
-## Run milestone 1
-
-See [QUICKSTART.md](QUICKSTART.md) for setup and demonstration steps.
+See [QUICKSTART.md](QUICKSTART.md) for requirements, installation, testing, and the interactive walkthrough.
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
-uvicorn app:app --host 127.0.0.1 --port 8000
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Open `http://127.0.0.1:8000` in a browser on the same device. No hardware or online API key required.
+Open http://127.0.0.1:8000 on the same device.
 
-**Implemented and backend-tested (Oct 16):** stateless MCP Streamable HTTP 2025-11-25 JSON-RPC `initialize`, `tools/list`, `tools/call`; fourteen real tools; SQLite persistence; a shipping-notice text parser with user review, imported/manual delivery records and verified ETA corrections; user-confirmed receipt and manually entered carrier status; local fixture doorstep events; delivery mismatch detection; human-reviewed support guidance; DoneProof local read-back ledger with idempotency, persistently recorded failed mutations, a signed Ring-format webhook inbox (raw-body HMAC-SHA256 verification and replay protection), explicit event-to-delivery association, and seven passing backend tests. JavaScript passes syntax validation.
+**Security:** This local demonstration does not implement production user authentication or multi-user data isolation. Run it only on localhost with fictional data.
 
-**Browser proof:** Chromium exercised the running UI JavaScript against the real FastAPI/SQLite application through a local browser test bridge: create sample, enter delivered claim, report missing, show guidance, record failed mutation, and reopen a fresh page with persistent data; no JavaScript exceptions. Direct networked browser-to-localhost communication was blocked by the test environment, so native HTTP browser E2E should still be confirmed in Termux.\n\n**Not verified yet:** official MCP SDK interoperability, Ring Playground/API calls, actual third-party carrier or email connections, live Alexa+ device access, authentication/multiuser security, public deployment, and Devpost submission. **This is a local demo, not public production.** Never advertise local fixture activity as a Ring event.
+## Features demonstrated
 
-**Next priority:** Run a real browser-to-localhost demo on Termux, verify independent MCP SDK interoperability, test the official Ring Playground if accessible, then finalize the friction log, demo video, setup validation and Devpost submission. The signed Ring-format test fixture is not a real Ring event. No Kiro credits or paid services were consumed.
+- Package histories, example delivery updates, user-confirmed receipt, and discrepancy detection.
+- Guided investigation and support information without claiming to contact a carrier.
+- Case and action persistence in a local database, with verification and duplicate-action prevention.
+- Sample doorstep events with explicit provenance, plus signed-event validation.
+- An interactive MCP server and web client using Streamable HTTP and protocol version 2025-11-25 or later.
+- Five fictional package scenarios.
+
+**Integration boundaries:** Simulated camera events are not verified footage from Ring hardware. Browser narration is not an authenticated Alexa device connection. Any actual integrations should be demonstrated and described separately from sample content.
+
+## For evaluators
+
+- [Installation and functional walkthrough](QUICKSTART.md)
+- [Build and evaluation guide](docs/ring-guardian-build-and-demo.md)
+- [Project scope](docs/product-scope.md)
+- [Submission requirements](docs/hackathon-requirements.md)
 
 Official contest: https://amazonappdev2026.devpost.com/
-
-## Kiro CLI: first credit-aware development batch
-
-- [Official-documentation-derived Kiro prompting and credit strategy](docs/kiro-communication-guide.md) — source links, first-prompt review, `/usage` and context management.
-- [Reviewed first-run prompt for Kiro](.kiro/prompts/delivery-guardian-first-run.md) — a **bounded execution milestone**, not an unconditional request to build the entire product.
-
-**Owner preflight:** Sync the project safely, inspect `/usage` and `/model` in Kiro CLI, ensure the selected model is available on the Free plan and that sufficient credit headroom remains to preserve the final credit. A single complex request can cost multiple credits, so a hard credit cap is not guaranteed. In Kiro V3, use `/prompts list` and choose the saved prompt or paste its contents; in V2, paste the prompt if local prompt invocation is unavailable. Do not run both versions of the same instruction. The first batch ends with tested code, a 10%-increment progress report when earned, and a sample for user feedback. Do not run unattended agent jobs or paid cloud tasks.
-
-
-## Five-package simulated logistics demo (October 20 update)
-
-The local MCP app now has three new simulated-logistics actions plus a scoped detail lookup:
-
-- `seed_demo_logistics({demo_user})` creates exactly five labeled fictional scenarios for an unused demo namespace. Repeating the action preserves existing records.
-- `list_demo_logistics({demo_user})` retrieves that namespace's five demo rows.
-- `get_demo_logistics({demo_user,tracking_id})` looks up a specific demo package.
-- `update_demo_logistics({demo_user,tracking_id,scan_status,details})` writes to SQLite and reads it back.
-
-Demo package IDs: `SIM-1001` missing after claimed delivery; `SIM-1002` hub delay; `SIM-1003` wrong truck; `SIM-1004` future video request; `SIM-1005` receipt confirmed. The browser's **Load five samples** action seeds a chosen demo namespace; it can then inspect or update each simulated logistics record. All values are fabricated; no Amazon logistics data, actual scanner, package video, or carrier APIs are queried.
-
-**Security boundary:** A demo namespace is not a user account. The existing general delivery and action tools still share one local database; there is no access control or production user isolation. Bind only to localhost with test data. The simulated logistics writes do not claim a real-world package was located.
-
-**Validation status:** Source files and changes committed and read back on GitHub. Automated tests for fixtures were added but have not been executed in this session. Run `python -m unittest discover -s tests -v` and complete the interactive judge walkthrough before saying all tests pass.
-
-[Draft Devpost fields and outstanding checklist](docs/devpost-submission-draft.md).
