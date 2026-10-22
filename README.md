@@ -12,6 +12,10 @@
 
 Delivery Guardian is a privacy-conscious delivery follow-through application. It aims to combine shipping notices, independently verified software actions, optional Ring doorstep evidence and human package-receipt confirmation. When a delivery is unclear or missing, it prepares transparent customer-service next steps rather than claiming it automatically filed a complaint. Built for zero-cost development and a reproducible working demo, not a static mockup.
 
+## Ring Guardian Base44 app and GitHub build instructions
+
+**Important: these are separate implementations.** This repository builds a local Python Delivery Guardian / Package P.I. MCP prototype, **not** the newer Base44 Ring Guardian Cam — Unrewound React/Vite app. For exact commands, public URLs, recording path, and submission verification, see **[Ring Guardian build and demo guide](docs/ring-guardian-build-and-demo.md)**. The Base44 source must be exported/synchronized separately to claim that it is reproducible from this repository. Do not run npm commands at this repository root.
+
 ## Start here
 
 - [Approved product scope, architecture, acceptance tests and dates](docs/product-scope.md) — **authoritative requirements for the product**.
