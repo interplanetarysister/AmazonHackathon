@@ -1,6 +1,6 @@
 # Ring Guardian AWS Agent Toolkit setup
 
-This procedure follows [AWS's official setup guide](https://github.com/aws/agent-toolkit-for-aws/blob/main/setup-instructions/setup.md). The AWS profile is `ring-guardian`; AWS Agent Toolkit is currently in `us-east-1`.
+This procedure follows [AWS's official setup guide](https://github.com/aws/agent-toolkit-for-aws/blob/main/setup-instructions/setup.md). The AWS profile is `ring-guardian`; the account default region is `us-east-2` (Ohio). AWS Agent Toolkit currently requires `us-east-1` for its service endpoint.
 
 ## Run in your own authenticated AWS environment
 
