@@ -1,8 +1,14 @@
-# Package P.I. runtime and judge-test dependencies
-# Python 3.11-3.13 recommended. Native Termux Python 3.14 may need
-# a compatible pydantic-core build environment.
+# Package P.I. runtime and judge test requirements
+# Install with: python -m pip install -r requirements.txt
+# Python 3.11-3.13 recommended; native Android Termux Python 3.14 has
+# known pydantic-core wheel/build issues and is not a verified target.
+# Direct runtime framework and ASGI server:
 fastapi>=0.110,<1
 uvicorn>=0.29,<1
+# FastAPI's TestClient needs httpx even though serving the app does not.
 httpx>=0.27,<1
+# Explicit framework dependencies for judge visibility; pip resolves
+# compatible versions with FastAPI and installs transitive requirements
+# (including pydantic-core for Pydantic v2, anyio, h11, click, etc.).
 starlette>=0.37,<1
 pydantic>=2.7,<3

@@ -10,7 +10,7 @@ class LogisticsFixtureTests(unittest.TestCase):
     def setUp(self):
         self.con=sqlite3.connect(":memory:")
         self.con.row_factory=sqlite3.Row
-        self.con.execute("""CREATE TABLE deliveries(id TEXT PRIMARY KEY,label TEXT,carrier TEXT,eta TEXT,tracking_hint TEXT,carrier_status TEXT,receipt_status TEXT,doorstep_status TEXT,source TEXT,created_at TEXT,updated_at TEXT)""")
+        self.con.execute("""CREATE TABLE deliveries(id TEXT PRIMARY KEY,label TEXT,carrier TEXT,eta TEXT,tracking_hint TEXT,carrier_status TEXT,receipt_status TEXT,doorstep_status TEXT,source TEXT,created_at TEXT,updated_at TEXT,direction TEXT NOT NULL DEFAULT 'incoming')""")
         self.con.execute("""CREATE TABLE evidence(id TEXT PRIMARY KEY,delivery_id TEXT,event_type TEXT,source TEXT,details TEXT,observed_at TEXT)""")
     def tearDown(self):
         self.con.close()

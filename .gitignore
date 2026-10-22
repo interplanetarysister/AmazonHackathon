@@ -155,3 +155,6 @@ __pycache__/
 *.sqlite3-*
 .venv/
 .pytest_cache/
+
+# Locally downloaded licensed footage (recreate using preparation script)
+web/demo-media/

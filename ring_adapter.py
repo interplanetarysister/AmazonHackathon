@@ -69,6 +69,16 @@ def store_ring_event(con: sqlite3.Connection, payload: dict[str, Any], now: str)
             raise ValueError("Event time must specify a time zone")
     except ValueError as exc:
         raise ValueError("Invalid Ring event time") from exc
+    # Ring's device event time is attributes.timestamp (milliseconds since epoch).
+    # meta.time marks the event envelope; fall back to it for older synthetic fixtures.
+    device_timestamp = attributes.get("timestamp")
+    if device_timestamp is not None:
+        if isinstance(device_timestamp, bool) or not isinstance(device_timestamp, (int, float)) or \
+                not 1262304000000 <= device_timestamp <= 4102444800000:
+            raise ValueError("Invalid Ring device event timestamp")
+        observed_at = datetime.fromtimestamp(device_timestamp / 1000, tz=timezone.utc).isoformat(timespec="milliseconds")
+    else:
+        observed_at = parsed.astimezone(timezone.utc).isoformat(timespec="microseconds")
     # This is deliberately not labeled confirmed_Ring: tests also generate
     # signed synthetic messages; a signature proves only possession of the key.
     con.execute("""INSERT INTO ring_events VALUES (?,?,?,?,?,?,?,?)""",
