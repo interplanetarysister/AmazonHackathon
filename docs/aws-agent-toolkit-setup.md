@@ -28,6 +28,17 @@ If `aws-mcp` or its `env` block already exists, reconcile it without replacing e
 
 For a second account, authenticate with `aws login --profile OTHER_PROFILE`, then add that profile to the space-separated `AWS_MCP_PROXY_PROFILES` list.
 
+
+## MCP repair automation
+
+The installer now invokes `scripts/patch-aws-mcp-profile.py` when Python 3 is available. It changes only an existing JSON `mcpServers.aws-mcp.env.AWS_MCP_PROXY_PROFILES` value and saves a `.aws-agent-toolkit.bak` backup. It refuses to overwrite an existing different profile, reports files that it did not recognize, and does not auto-edit OpenCode or TOML configurations. If the installer wrote a different JSON path, pass the exact path manually:
+
+```bash
+python3 scripts/patch-aws-mcp-profile.py --profile ring-guardian /absolute/path/to/mcp.json
+```
+
+The repair helper uses Python 3 *only if already available*; it is not required for the AWS installer itself. An environment without Python 3 can edit the MCP configuration manually. The helper cannot prove that the MCP server is connected; start the configured agent and run a real MCP tool-list call to verify.
+
 ## Verification and release gate
 
 - `aws sts get-caller-identity --profile ring-guardian` succeeds.
