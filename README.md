@@ -29,6 +29,12 @@ Open http://127.0.0.1:8000 on the same device.
 
 **Integration boundaries:** Simulated camera events are not verified footage from Ring hardware. Browser narration is not an authenticated Alexa device connection. Any actual integrations should be demonstrated and described separately from sample content.
 
+## General development terminology
+
+Architecture descriptions use service-neutral terms such as **a hosting provider**, **an external service**, **a code editor**, and **a source-control platform** where a specific vendor is not needed for setup or verification.
+
+Examples of widely used tools in the Amazon developer ecosystem are **Amazon Web Services (AWS)**, **Visual Studio Code (with AWS Toolkit)**, and **GitHub**. These are examples only, **not a statement that all three were used to build this project**. The reproducible build instructions and actual integration behavior remain authoritative.
+
 ## For evaluators
 
 - [Installation and functional walkthrough](QUICKSTART.md)
