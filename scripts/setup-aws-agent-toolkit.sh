@@ -2,7 +2,7 @@
 # AWS Agent Toolkit setup for Ring Guardian. No chargeable AWS resources are created here.
 set -euo pipefail
 PROFILE="ring-guardian"
-REGION="us-east-1"
+REGION="us-east-2"
 log() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [[ "$(uname -s)" == "Linux" || "$(uname -s)" == "Darwin" ]] || fail "Run this script from macOS/Linux (AWS CloudShell supported)."
